@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>X-Character Prompt Creator</title>
+<meta name="description" content="Answer step-by-step questions in French or English about a character, then copy a ready-made prompt for any AI image tool.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#EDEFF8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12142F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="X-Character">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,500..800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<style>
+/* Layout: an artist's mannequin on a head-height ruler stays in view and reacts to the answers; questions sit beside it, the prompt writes itself on the right. */
+:root {
+  --paper: #EDEFF8;
+  --surface: #F9FAFE;
+  --ink: #1B1E4B;
+  --muted: #535783;
+  --line: #C6CAE2;
+  --accent: #F4B223;
+  --on-accent: #1B1E4B;
+  --primary: #2A2F8F;
+  --on-primary: #FFFFFF;
+  --fig: #C3C7E3;
+  --fig-line: #2A2F8F;
+  --display: "Bricolage Grotesque", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Atkinson Hyperlegible", Verdana, "Segoe UI", sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12142F; --surface: #1B1E42; --ink: #ECEDFA; --muted: #A9ACD3; --line: #383C6E;
+    --accent: #F4B223; --on-accent: #1B1E4B; --primary: #F4B223; --on-primary: #14163A;
+    --fig: #4B4F8A; --fig-line: #C8CBF2; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12142F; --surface: #1B1E42; --ink: #ECEDFA; --muted: #A9ACD3; --line: #383C6E;
+  --accent: #F4B223; --on-accent: #1B1E4B; --primary: #F4B223; --on-primary: #14163A;
+  --fig: #4B4F8A; --fig-line: #C8CBF2; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 400 1rem/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 48px;
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.app { max-width: 1320px; margin-inline: auto; display: grid; gap: 20px; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+.brand { font: 800 1.35rem/1.1 var(--display); font-stretch: 80%; letter-spacing: -.01em; margin: 0; }
+.top-right { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.count { font: 400 .8rem var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.btn { border: 1.5px solid var(--ink); background: transparent; border-radius: 7px; padding: .45rem .8rem; font-weight: 700; font-size: .9rem; cursor: pointer; min-height: 38px; }
+.btn:hover { background: var(--surface); }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.btn.primary:hover { filter: brightness(1.12); background: var(--primary); }
+.btn.quiet { border-color: var(--line); font-weight: 400; }
+.lang { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 7px; overflow: hidden; }
+.lang button { background: transparent; border: 0; padding: .35rem .65rem; min-height: 36px; font: 500 .8rem var(--mono); cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.lang button:focus-visible { outline-offset: -3px; }
+
+/* Three columns */
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 350px; gap: 32px; align-items: start; }
+.layout.no-panel { grid-template-columns: 240px minmax(0, 1fr); }
+.stage { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); display: grid; gap: 14px; max-height: calc(100vh - 32px); overflow-y: auto; min-width: 0; }
+.panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); background: var(--surface); border: 1.5px solid var(--ink); border-radius: 10px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: calc(100vh - 32px); min-width: 0; }
+main { min-width: 0; }
+
+/* Mannequin */
+#fig { display: block; width: 100%; height: clamp(220px, 40vh, 340px); cursor: pointer; overflow: hidden; }
+#fig .f { stroke: var(--skin, var(--fig)); fill: none; stroke-linecap: round; }
+#fig .o { stroke: var(--fig-line); fill: none; stroke-linecap: round; transition: stroke .25s; }
+#fig .j { fill: var(--skin, var(--fig)); stroke: var(--fig-line); stroke-width: 1.5; transition: stroke .25s, fill .25s; }
+#fig .hair { fill: var(--hair, var(--fig-line)); stroke: none; }
+#fig .feat { fill: none; stroke: var(--fig-line); stroke-width: 1; stroke-linecap: round; }
+#fig .iris { fill: var(--eye, var(--fig-line)); stroke: none; transition: fill .25s; }
+#fig .tick { stroke: var(--line); stroke-width: 1; }
+#fig .rule-text { font: 400 12px var(--mono); fill: var(--muted); }
+#ruler { transition: opacity .3s; }
+#figZoom, #figH, #figB { transition: transform .6s cubic-bezier(.3, .8, .3, 1); }
+#figH { transform-origin: 120px 420px; }
+#figB { transform-origin: 120px 0; }
+#fig[data-z="body"] .z-body .o, #fig[data-z="all"] .o { stroke: var(--accent); }
+#fig[data-z="body"] .z-body .j, #fig[data-z="all"] .j, #fig[data-z="face"] .head { stroke: var(--accent); stroke-width: 2.5; }
+#fig[data-z="eyes"] .z-eyes .feat, #fig[data-z="mouth"] .z-mouth .feat { stroke: var(--accent); stroke-width: 1.6; }
+#fig[data-z="hair"] .hair { stroke: var(--accent); stroke-width: 1; }
+.rail { display: grid; gap: 2px; }
+.rail button { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: .3rem .55rem; cursor: pointer; font-size: .92rem; color: var(--ink); white-space: nowrap; }
+.rail button:hover { background: var(--surface); }
+.rail button[aria-current="step"] { background: var(--ink); color: var(--paper); font-weight: 700; }
+.rail .n { font: 400 .72rem var(--mono); opacity: .75; font-variant-numeric: tabular-nums; }
+
+/* Questions */
+.eyebrow { font: 500 .75rem var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+h1 { font: 800 clamp(1.8rem, 3.6vw, 2.7rem)/1.05 var(--display); font-stretch: 82%; letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+.hint { color: var(--muted); margin: 8px 0 0; max-width: 62ch; }
+.fields { display: grid; gap: 22px; margin-top: 24px; }
+.field { display: grid; gap: 8px; min-width: 0; }
+.field-head { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.field-label { font-weight: 700; }
+.field-mode { font: 400 .7rem var(--mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: .38rem .66rem; min-height: 38px; cursor: pointer; font-size: .94rem; line-height: 1.2; text-align: left; }
+.chip:hover { border-color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.chip[aria-pressed="true"]::before { content: "\2713"; font-weight: 700; }
+.chip.own { border-style: dashed; background: transparent; color: var(--muted); }
+.chip.own[aria-expanded="true"] { border-style: solid; color: var(--ink); }
+.dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+input[type="text"], input[type="number"] { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: .5rem .66rem; min-height: 40px; width: 100%; max-width: 30rem; }
+input::placeholder { color: var(--muted); opacity: .85; }
+.age-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.age-row input[type="range"] { flex: 1 1 200px; min-width: 0; accent-color: var(--primary); }
+.age-row input[type="number"] { width: 5.5rem; flex: none; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: .85rem; }
+.note { font-size: .9rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; margin: 0; max-width: 62ch; }
+.step-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Prompt panel */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.panel-title { font: 700 1rem var(--display); margin: 0; display: flex; align-items: center; gap: 8px; }
+.tag { font: 500 .66rem var(--mono); letter-spacing: .05em; text-transform: uppercase; background: var(--accent); color: var(--on-accent); padding: 2px 6px; border-radius: 4px; }
+.prompt-text { font: 400 .8rem/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 12px; overflow-y: auto; min-height: 120px; }
+.panel-foot { padding: 10px 12px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.words { font: 400 .72rem var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Final step */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.help { font-size: .9rem; color: var(--muted); margin: 10px 0 0; }
+.out-label { display: block; font-weight: 700; margin: 16px 0 6px; }
+textarea { display: block; width: 100%; background: var(--surface); border: 1.5px solid var(--ink); border-radius: 10px; padding: 14px; font: 400 .88rem/1.6 var(--mono); resize: vertical; }
+.copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; }
+.copy-row .btn.primary { font-size: 1rem; padding: .6rem 1.1rem; min-height: 44px; }
+.missing { margin-top: 26px; }
+.missing h2 { font: 700 1.1rem var(--display); margin: 0 0 4px; }
+
+@media (max-width: 1180px) {
+  .layout, .layout.no-panel { grid-template-columns: 220px minmax(0, 1fr); gap: 24px; }
+  .panel { grid-column: 2; position: static; max-height: none; }
+  .prompt-text { max-height: 340px; }
+}
+@media (max-width: 760px) {
+  .layout, .layout.no-panel { grid-template-columns: minmax(0, 1fr); }
+  .panel { grid-column: 1; }
+  .stage { position: static; grid-template-columns: 74px minmax(0, 1fr); align-items: center; max-height: none; overflow: visible; }
+  #fig { height: 148px; }
+  #ruler { display: none; }
+  .rail { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+  .rail button { width: auto; flex: none; }
+  .rail .n { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #figZoom, #figH, #figB, #ruler { transition: none; }
+}
+
+/* Passcode lock */
+html:not(.xc-ok) .app { display: none !important; }
+.xc-lock { max-width: 580px; margin: 5vh auto 0; }
+.xc-card { background: var(--surface); border: 1.5px solid var(--ink); border-radius: 12px; padding: 22px; display: grid; gap: 18px; }
+.xc-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.xc-card h1 { font-size: clamp(1.7rem, 6vw, 2.3rem); }
+.xc-card .hint { margin: 0; }
+.xc-dev { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.xc-dev code { font: 500 1.6rem var(--mono); letter-spacing: .08em; background: var(--paper); border: 1.5px dashed var(--line); border-radius: 8px; padding: .3rem .75rem; user-select: all; }
+.xc-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.xc-row input[type="text"] { flex: 1 1 230px; max-width: none; min-width: 0; font: 500 1.15rem var(--mono); letter-spacing: .05em; text-transform: uppercase; min-height: 46px; }
+.xc-row .btn { min-height: 46px; }
+.xc-msg { margin: 0; padding: 10px 14px; border-left: 4px solid var(--accent); background: var(--paper); font-weight: 700; }
+.xc-field { display: grid; gap: 8px; }
+</style>
+</head>
+<body>
+<section id="xcLock" class="xc-lock" hidden aria-labelledby="xcTitle">
+  <div class="xc-card">
+    <div class="xc-top">
+      <p class="brand">X-Character Prompt Creator</p>
+      <div class="lang" role="group" aria-label="Language / Langue">
+        <button type="button" id="xcLang-en" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" id="xcLang-fr" data-lang="fr" aria-pressed="false">FR</button>
+      </div>
+    </div>
+    <h1 id="xcTitle">Enter your access code</h1>
+    <p class="hint" id="xcIntro"></p>
+    <p class="xc-msg" id="xcMsg" role="alert" hidden></p>
+    <div class="xc-field"><span class="field-label" id="xcDevLabel"></span>
+      <div class="xc-dev"><code id="xcDevice"></code><button class="btn" type="button" id="xcCopyDev"></button></div></div>
+    <form id="xcForm" class="xc-field" novalidate>
+      <label class="field-label" for="xcCode" id="xcCodeLabel"></label>
+      <div class="xc-row"><input type="text" id="xcCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX"><button class="btn primary" type="submit" id="xcUnlock"></button></div>
+    </form>
+    <p class="help" id="xcNote" style="margin:0"></p>
+  </div>
+</section>
+<div class="app">
+  <header class="top">
+    <p class="brand">X-Character Prompt Creator</p>
+    <div class="top-right">
+      <span class="count" id="count"></span>
+      <button class="btn primary" type="button" id="install" hidden>Install app</button>
+      <button class="btn quiet" type="button" id="surprise">Surprise me</button>
+      <button class="btn quiet" type="button" id="reset">Start over</button>
+      <div class="lang" role="group" aria-label="Language / Langue">
+        <button type="button" id="lang-en" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" id="lang-fr" data-lang="fr" aria-pressed="false">FR</button>
+      </div>
+    </div>
+  </header>
+  <p class="note" id="iosTip" hidden></p>
+  <div class="layout" id="layout">
+    <aside class="stage">
+      <svg id="fig" viewBox="0 0 220 440" aria-hidden="true"></svg>
+      <nav class="rail" id="rail" aria-label="Question sections"></nav>
+    </aside>
+    <main id="main"></main>
+    <section class="panel" id="panel" aria-label="Prompt so far">
+      <div class="panel-head">
+        <h2 class="panel-title">Prompt so far <span class="tag" id="exTag">Example</span></h2>
+        <button class="btn quiet" type="button" id="panelCopy">Copy</button>
+      </div>
+      <pre class="prompt-text" id="panelText"></pre>
+      <div class="panel-foot">
+        <span class="words" id="panelWords"></span>
+        <button class="link-btn" type="button" id="useExample">Fill the form with this example</button>
+      </div>
+    </section>
+  </div>
+</div>
+<datalist id="countries"></datalist>
+<datalist id="jobs"></datalist>
+<div id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></div>
+
+<script>
+const COUNTRIES = "Afghanistan,Albania,Algeria,Andorra,Angola,Antigua and Barbuda,Argentina,Armenia,Australia,Austria,Azerbaijan,Bahamas,Bahrain,Bangladesh,Barbados,Belarus,Belgium,Belize,Benin,Bhutan,Bolivia,Bosnia and Herzegovina,Botswana,Brazil,Brunei,Bulgaria,Burkina Faso,Burundi,Cabo Verde,Cambodia,Cameroon,Canada,Central African Republic,Chad,Chile,China,Colombia,Comoros,Congo (Republic),Costa Rica,Côte d'Ivoire,Croatia,Cuba,Cyprus,Czechia,DR Congo,Denmark,Djibouti,Dominica,Dominican Republic,Ecuador,Egypt,El Salvador,Equatorial Guinea,Eritrea,Estonia,Eswatini,Ethiopia,Fiji,Finland,France,Gabon,Gambia,Georgia,Germany,Ghana,Greece,Grenada,Guatemala,Guinea,Guinea-Bissau,Guyana,Haiti,Honduras,Hong Kong,Hungary,Iceland,India,Indonesia,Iran,Iraq,Ireland,Israel,Italy,Jamaica,Japan,Jordan,Kazakhstan,Kenya,Kiribati,Kosovo,Kuwait,Kyrgyzstan,Laos,Latvia,Lebanon,Lesotho,Liberia,Libya,Liechtenstein,Lithuania,Luxembourg,Madagascar,Malawi,Malaysia,Maldives,Mali,Malta,Marshall Islands,Mauritania,Mauritius,Mexico,Micronesia,Moldova,Monaco,Mongolia,Montenegro,Morocco,Mozambique,Myanmar,Namibia,Nauru,Nepal,Netherlands,New Zealand,Nicaragua,Niger,Nigeria,North Korea,North Macedonia,Norway,Oman,Pakistan,Palau,Palestine,Panama,Papua New Guinea,Paraguay,Peru,Philippines,Poland,Portugal,Puerto Rico,Qatar,Romania,Russia,Rwanda,Saint Kitts and Nevis,Saint Lucia,Saint Vincent and the Grenadines,Samoa,San Marino,São Tomé and Príncipe,Saudi Arabia,Senegal,Serbia,Seychelles,Sierra Leone,Singapore,Slovakia,Slovenia,Solomon Islands,Somalia,South Africa,South Korea,South Sudan,Spain,Sri Lanka,Sudan,Suriname,Sweden,Switzerland,Syria,Taiwan,Tajikistan,Tanzania,Thailand,Timor-Leste,Togo,Tonga,Trinidad and Tobago,Tunisia,Turkey,Turkmenistan,Tuvalu,Uganda,Ukraine,United Arab Emirates,United Kingdom,United States,Uruguay,Uzbekistan,Vanuatu,Vatican City,Venezuela,Vietnam,Yemen,Zambia,Zimbabwe".split(",");
+const JOBS = "accountant,actor,architect,artist,athlete,baker,barber,bus driver,butcher,carpenter,chef,civil engineer,dancer,dentist,doctor,electrician,farmer,fashion designer,firefighter,fisherman,flight attendant,hairdresser,journalist,judge,lawyer,mechanic,midwife,model,motorcycle taxi driver,musician,nurse,photographer,pilot,police officer,professor,retired teacher,scientist,shop owner,singer,soldier,software engineer,street vendor,student,tailor,teacher,video creator,waiter".split(",");
+
+const COUNTRIES_FR = "Afghanistan,Albanie,Algérie,Andorre,Angola,Antigua-et-Barbuda,Argentine,Arménie,Australie,Autriche,Azerbaïdjan,Bahamas,Bahreïn,Bangladesh,Barbade,Biélorussie,Belgique,Belize,Bénin,Bhoutan,Bolivie,Bosnie-Herzégovine,Botswana,Brésil,Brunei,Bulgarie,Burkina Faso,Burundi,Cap-Vert,Cambodge,Cameroun,Canada,République centrafricaine,Tchad,Chili,Chine,Colombie,Comores,Congo (République),Costa Rica,Côte d'Ivoire,Croatie,Cuba,Chypre,Tchéquie,RD Congo,Danemark,Djibouti,Dominique,République dominicaine,Équateur,Égypte,Salvador,Guinée équatoriale,Érythrée,Estonie,Eswatini,Éthiopie,Fidji,Finlande,France,Gabon,Gambie,Géorgie,Allemagne,Ghana,Grèce,Grenade,Guatemala,Guinée,Guinée-Bissau,Guyana,Haïti,Honduras,Hong Kong,Hongrie,Islande,Inde,Indonésie,Iran,Irak,Irlande,Israël,Italie,Jamaïque,Japon,Jordanie,Kazakhstan,Kenya,Kiribati,Kosovo,Koweït,Kirghizistan,Laos,Lettonie,Liban,Lesotho,Liberia,Libye,Liechtenstein,Lituanie,Luxembourg,Madagascar,Malawi,Malaisie,Maldives,Mali,Malte,Îles Marshall,Mauritanie,Maurice,Mexique,Micronésie,Moldavie,Monaco,Mongolie,Monténégro,Maroc,Mozambique,Myanmar,Namibie,Nauru,Népal,Pays-Bas,Nouvelle-Zélande,Nicaragua,Niger,Nigeria,Corée du Nord,Macédoine du Nord,Norvège,Oman,Pakistan,Palaos,Palestine,Panama,Papouasie-Nouvelle-Guinée,Paraguay,Pérou,Philippines,Pologne,Portugal,Porto Rico,Qatar,Roumanie,Russie,Rwanda,Saint-Christophe-et-Niévès,Sainte-Lucie,Saint-Vincent-et-les-Grenadines,Samoa,Saint-Marin,Sao Tomé-et-Principe,Arabie saoudite,Sénégal,Serbie,Seychelles,Sierra Leone,Singapour,Slovaquie,Slovénie,Îles Salomon,Somalie,Afrique du Sud,Corée du Sud,Soudan du Sud,Espagne,Sri Lanka,Soudan,Suriname,Suède,Suisse,Syrie,Taïwan,Tadjikistan,Tanzanie,Thaïlande,Timor oriental,Togo,Tonga,Trinité-et-Tobago,Tunisie,Turquie,Turkménistan,Tuvalu,Ouganda,Ukraine,Émirats arabes unis,Royaume-Uni,États-Unis,Uruguay,Ouzbékistan,Vanuatu,Vatican,Venezuela,Vietnam,Yémen,Zambie,Zimbabwe".split(",");
+const JOBS_FR = "comptable,acteur|actrice,architecte,artiste,athlète,boulanger|boulangère,barbier|barbière,chauffeur de bus|conductrice de bus,boucher|bouchère,menuisier|menuisière,chef cuisinier|cheffe cuisinière,ingénieur civil|ingénieure civile,danseur|danseuse,dentiste,médecin,électricien|électricienne,agriculteur|agricultrice,styliste,pompier|pompière,pêcheur|pêcheuse,steward|hôtesse de l'air,coiffeur|coiffeuse,journaliste,juge,avocat|avocate,mécanicien|mécanicienne,sage-femme,mannequin,conducteur de moto-taxi|conductrice de moto-taxi,musicien|musicienne,infirmier|infirmière,photographe,pilote,policier|policière,professeur|professeure,enseignant à la retraite|enseignante à la retraite,scientifique,commerçant|commerçante,chanteur|chanteuse,soldat|soldate,ingénieur logiciel|ingénieure logiciel,vendeur ambulant|vendeuse ambulante,étudiant|étudiante,tailleur|couturière,enseignant|enseignante,créateur vidéo|créatrice vidéo,serveur|serveuse".split(",");
+const COUNTRY_PAIRS = COUNTRIES.map((c, i) => [c, COUNTRIES_FR[i]]);
+const JOB_PAIRS = JOBS.map((j, i) => { const p = JOBS_FR[i].split("|"); return [j, p[0], p[1] || p[0]]; });
+
+const STEPS = [
+ { id:"who", nav:"Identity", z:"all", title:"Who is this character?", hint:"Every question is optional. Anything you skip is left for the AI tool to decide. Tap a choice again to clear it.", fields:[
+  {id:"name",type:"text",label:"Character name",ph:"Optional. For example Manka"},
+  {id:"sex",type:"one",label:"Sex",noCustom:1,opts:["Female","Male","Intersex"]},
+  {id:"pres",type:"one",label:"How do they present?",opts:[["Feminine","feminine-presenting"],["Masculine","masculine-presenting"],["Androgynous","androgynous"]]},
+  {id:"age",type:"age",label:"Age"},
+  {id:"origin",type:"text",list:"countries",label:"Country of origin",ph:"Start typing a country"},
+  {id:"origin2",type:"text",list:"countries",label:"Second country, if mixed heritage",ph:"Optional"},
+  {id:"ethnic",type:"text",label:"Ethnic group or region",ph:"For example Bamileke, Yoruba, Punjabi, Sami"},
+  {id:"job",type:"text",list:"jobs",label:"Job",ph:"Start typing a job, or write your own"},
+  {id:"era",type:"one",label:"When do they live?",line:"Scene",fmt:"set in {}",opts:[["Present day","set in the present day"],["1990s","set in the 1990s"],["1970s","set in the 1970s"],["1950s","set in the 1950s"],["1920s","set in the 1920s"],["1800s","set in the 1800s"],["Medieval times","set in medieval times"],["Ancient times","set in ancient times"],["Near future","set in the near future"],["Far future","set in the far future"],["Fantasy world","set in a fantasy world"]]},
+ ]},
+ { id:"body", nav:"Body", z:"body", title:"What does the body look like?", hint:"Height and build change the mannequin as you answer.", fields:[
+  {id:"height",type:"one",label:"Height",line:"Body",fmt:"{} tall",ownPh:"For example 175 cm",opts:[["Very short","very short stature"],["Short","short stature"],["Average","average height"],["Tall","tall"],["Very tall","very tall"]]},
+  {id:"build",type:"one",label:"Build",line:"Body",fmt:"{} build",adultOpts:["Curvy"],opts:["Slim","Lean","Athletic","Average","Muscular","Stocky","Curvy","Plus-size","Heavyset"]},
+  {id:"muscle",type:"one",label:"Muscle tone",line:"Body",fmt:"{} muscles",opts:[["Soft","soft, untoned body"],["Lightly toned","lightly toned muscles"],["Toned","well-toned muscles"],["Defined","clearly defined muscles"]]},
+  {id:"posture",type:"one",label:"Posture",line:"Body",fmt:"{} posture",opts:["Upright and confident","Relaxed","Slouched","Stiff","Stooped"]},
+  {id:"neck",type:"one",label:"Neck",line:"Body",fmt:"{} neck",opts:["Short","Average","Long","Thick","Slender"]},
+  {id:"shoulders",type:"one",label:"Shoulders",line:"Body",fmt:"{} shoulders",opts:["Narrow","Average","Broad","Square","Sloped"]},
+  {id:"chest",type:"one",adult:1,label:"Chest",line:"Body",fmt:"{} chest",opts:["Flat","Narrow","Average","Broad","Barrel",["Small bust","small bust"],["Medium bust","medium bust"],["Full bust","full bust"]]},
+  {id:"waist",type:"one",adult:1,label:"Waist",line:"Body",fmt:"{} waist",opts:["Narrow","Average","Thick","Straight"]},
+  {id:"hips",type:"one",adult:1,label:"Hips",line:"Body",fmt:"{} hips",opts:["Narrow","Average","Wide"]},
+  {id:"arms",type:"one",label:"Arms",line:"Body",fmt:"{} arms",opts:["Slender","Average","Toned","Muscular","Soft","Long","Short"]},
+  {id:"legs",type:"one",label:"Legs",line:"Body",fmt:"{} legs",opts:["Slender","Average","Muscular","Thick","Long","Short","Bowed"]},
+  {id:"hands",type:"one",label:"Hands",line:"Body",fmt:"{} hands",opts:["Small and delicate","Long-fingered","Large and strong","Calloused","Soft and well-kept"]},
+  {id:"feet",type:"one",label:"Feet",line:"Body",fmt:"{} feet",opts:["Small","Average","Large","Narrow","Wide"]},
+  {id:"diff",type:"many",label:"Disability or body difference",line:"Body",opts:["Uses a wheelchair","Uses a cane","Prosthetic arm","Prosthetic leg","Limb difference","Dwarfism","Curved spine","Hearing aids"]},
+ ]},
+ { id:"skin", nav:"Skin", z:"all", title:"What is the skin like?", hint:"The tone you pick colours the mannequin.", fields:[
+  {id:"tone",type:"one",label:"Skin tone",line:"Skin",fmt:"{} skin",opts:[["Porcelain",0,"#F6E3D7"],["Ivory",0,"#F1D6BE"],["Fair",0,"#E8C4A4"],["Beige",0,"#DDB48D"],["Olive",0,"#C69C6D"],["Tan",0,"#BC8A5F"],["Caramel",0,"#A5703F"],["Golden brown",0,"#8F5A32"],["Chestnut",0,"#74452A"],["Brown",0,"#5C3620"],["Deep brown",0,"#452817"],["Ebony",0,"#2E1B11"]]},
+  {id:"undertone",type:"one",label:"Undertone",line:"Skin",fmt:"{} undertone",opts:["Cool","Neutral","Warm","Golden","Red","Olive"]},
+  {id:"texture",type:"one",label:"Texture",line:"Skin",fmt:"{} skin texture",opts:["Smooth",["Visible pores","natural skin with visible pores"],"Oily","Dry","Matte","Glowing","Weathered"]},
+  {id:"marks",type:"many",label:"Marks and features",line:"Skin",opts:["Freckles","Moles","Beauty mark","Birthmark","Vitiligo","Albinism","Sun spots","Acne","Acne scars","Wrinkles","Laugh lines","Dark circles","Facial scar","Body scars","Burn scars","Tribal scarification"]},
+  {id:"tattoos",type:"one",adult:1,label:"Tattoos",line:"Skin",fmt:"tattoos: {}",opts:[["None","no visible tattoos"],["Small and discreet","a small discreet tattoo"],["One full sleeve","one full tattoo sleeve"],["Several","several visible tattoos"],["Neck or face","neck or face tattoos"],["Covered in tattoos","covered in tattoos"]]},
+ ]},
+ { id:"face", nav:"Face", z:"face", zoom:[3.2,120,45], title:"What shape is the face?", hint:"These are the bones of the face. Eyes, nose and mouth come next.", fields:[
+  {id:"faceShape",type:"one",label:"Face shape",line:"Face",fmt:"{} face",opts:["Oval","Round","Square","Heart-shaped","Diamond","Long","Triangular"]},
+  {id:"forehead",type:"one",label:"Forehead",line:"Face",fmt:"{} forehead",opts:["Low","Average","High","Broad","Narrow"]},
+  {id:"cheeks",type:"one",label:"Cheekbones",line:"Face",fmt:"{} cheekbones",opts:["Soft","High","Prominent","Hollow",["Full cheeks","full cheeks"]]},
+  {id:"jaw",type:"one",label:"Jawline",line:"Face",fmt:"{} jawline",opts:["Soft","Rounded","Defined","Square","Narrow"]},
+  {id:"chin",type:"one",label:"Chin",line:"Face",fmt:"{} chin",opts:["Rounded","Pointed","Square","Cleft","Receding",["Double chin","double chin"]]},
+  {id:"facialHair",type:"one",label:"Facial hair",line:"Face",opts:["Clean-shaven","Stubble","Moustache","Goatee","Short beard","Full beard","Long beard","Grey beard"]},
+ ]},
+ { id:"eyes", nav:"Eyes", z:"eyes", zoom:[5.4,120,44], title:"What are the eyes like?", hint:"People look at the eyes first, so these details change the likeness a lot.", fields:[
+  {id:"eyeColor",type:"one",label:"Eye colour",line:"Eyes",fmt:"{} eyes",opts:[["Dark brown",0,"#3B2314"],["Brown",0,"#6B4226"],["Hazel",0,"#8E7240"],["Amber",0,"#B5822C"],["Green",0,"#4F7F56"],["Blue",0,"#4C7DB8"],["Grey",0,"#8792A0"],["Two different colours","eyes of two different colours"]]},
+  {id:"eyeShape",type:"one",label:"Eye shape",line:"Eyes",fmt:"{} eyes",opts:["Almond","Round","Hooded","Monolid","Upturned","Downturned","Deep-set"]},
+  {id:"eyeSize",type:"one",label:"Eye size",line:"Eyes",fmt:"{} eyes",opts:["Small","Average","Large"]},
+  {id:"eyeGap",type:"one",label:"Eye spacing",line:"Eyes",fmt:"{} eyes",opts:[["Close-set","close-set eyes"],["Average","average eye spacing"],["Wide-set","wide-set eyes"]]},
+  {id:"brows",type:"one",label:"Eyebrows",line:"Eyes",fmt:"{} eyebrows",opts:["Thin","Natural","Thick","Bushy","Arched","Straight"]},
+  {id:"lashes",type:"one",label:"Eyelashes",line:"Eyes",fmt:"{} eyelashes",opts:["Short","Natural","Long","Thick"]},
+  {id:"eyewear",type:"one",label:"Glasses",line:"Eyes",opts:[["None","no glasses"],"Round glasses","Rectangular glasses","Sunglasses","Eye patch"]},
+ ]},
+ { id:"mouth", nav:"Nose, mouth, ears", z:"mouth", zoom:[5,120,54], title:"Nose, mouth and ears", hint:"Small differences here make a face look like one specific person.", fields:[
+  {id:"nose",type:"one",label:"Nose shape",line:"Nose, mouth and ears",fmt:"{} nose",opts:["Straight","Button","Snub","Roman","Aquiline","Hooked","Flat","Broad"]},
+  {id:"noseSize",type:"one",label:"Nose size",line:"Nose, mouth and ears",fmt:"{} nose",opts:["Small","Average","Large"]},
+  {id:"nostrils",type:"one",label:"Nostrils",line:"Nose, mouth and ears",fmt:"{} nostrils",opts:["Narrow","Medium","Wide"]},
+  {id:"lips",type:"one",label:"Lip fullness",line:"Nose, mouth and ears",fmt:"{} lips",opts:["Thin","Medium","Full","Very full"]},
+  {id:"lipShape",type:"one",label:"Mouth shape",line:"Nose, mouth and ears",opts:[["Defined cupid's bow","defined cupid's bow"],"Wide mouth","Small mouth","Downturned corners"]},
+  {id:"lipColor",type:"one",label:"Lip colour",line:"Nose, mouth and ears",fmt:"{} lips",opts:["Natural","Dark","Pink","Nude",["Red lipstick","red lipstick"],["Berry lipstick","berry lipstick"]]},
+  {id:"teeth",type:"one",label:"Teeth",line:"Nose, mouth and ears",opts:["Straight white teeth","Gap in the front teeth","Slightly crooked teeth","Gold tooth","Braces","Missing tooth"]},
+  {id:"ears",type:"one",label:"Ears",line:"Nose, mouth and ears",fmt:"{} ears",opts:["Small","Average","Large","Protruding"]},
+  {id:"piercings",type:"many",label:"Piercings",line:"Nose, mouth and ears",opts:["Ear studs","Hoop earrings","Stretched earlobes","Nose stud","Septum ring","Lip ring","Eyebrow ring"]},
+ ]},
+ { id:"hair", nav:"Hair", z:"hair", zoom:[3.2,120,45], title:"How is the hair worn?", hint:"Length and colour show on the mannequin. Naming a style, such as box braids, usually works better than describing it.", fields:[
+  {id:"hairLen",type:"one",label:"Length",line:"Hair",fmt:"{} hair",opts:[["Bald","bald head"],["Buzz cut","buzz cut"],"Short","Chin-length","Shoulder-length","Long","Very long"]},
+  {id:"hairTex",type:"one",noBald:1,label:"Texture",line:"Hair",fmt:"{} hair",opts:["Straight","Wavy","Curly","Coily","Kinky"]},
+  {id:"hairCol",type:"one",noBald:1,label:"Colour",line:"Hair",fmt:"{} hair",opts:[["Black",0,"#1B1714"],["Dark brown",0,"#33231A"],["Brown",0,"#5A3A24"],["Light brown",0,"#8A6239"],["Blonde",0,"#D8B871"],["Red",0,"#A63A1E"],["Auburn",0,"#7A2F18"],["Grey",0,"#9A9AA0"],["White",0,"#E7E5E0"],["Salt and pepper",0,"#6B6B6F"],["Dyed blue","hair dyed blue","#3F69D6"],["Dyed pink","hair dyed pink","#E0689F"]]},
+  {id:"hairStyle",type:"one",noBald:1,label:"Style",line:"Hair",opts:[["Loose and natural","hair worn loose and natural"],"Afro","Box braids","Cornrows","Locs","Twists","Bantu knots","Fade","Pixie cut","Bob","Ponytail","Bun","Top knot","Mohawk",["Slicked back","slicked-back hair"],"Curtain bangs"]},
+  {id:"hairline",type:"one",noBald:1,label:"Hairline",line:"Hair",fmt:"{} hairline",opts:["Straight","Rounded","Widow's peak","High","Receding"]},
+  {id:"headwear",type:"one",label:"Head covering",line:"Hair",opts:[["None","no head covering"],"Head wrap","Hijab","Turban","Kufi","Beanie","Baseball cap","Wide-brim hat","Sun hat"]},
+ ]},
+ { id:"style", nav:"Personality, clothes", z:"none", title:"Personality and clothes", hint:"Personality shows through the expression and what the character wears.", fields:[
+  {id:"traits",type:"many",label:"Personality",line:"Personality and expression",opts:["Confident","Shy","Kind","Serious","Funny","Mysterious","Brave","Wise","Ambitious","Rebellious","Elegant","Gentle","Tough","Cheerful","Tired","Anxious"]},
+  {id:"expression",type:"one",label:"Facial expression",line:"Personality and expression",fmt:"{} expression",opts:[["Warm smile","warm smile"],["Big laugh","laughing"],"Calm neutral","Serious","Focused","Surprised","Sad","Angry",["Slight smirk","slight smirk"]]},
+  {id:"outfit",type:"one",label:"Outfit style",line:"Outfit",fmt:"{} outfit",opts:["Casual",["Smart business","smart business outfit"],["Work uniform","work uniform suited to their job"],["Traditional dress","traditional dress from {origin}"],"Streetwear","Sportswear",["Formal","formal outfit"],"Vintage",["Rugged outdoor","rugged outdoor clothing"],["Fantasy armour","fantasy armour"],"Futuristic"]},
+  {id:"fabric",type:"one",label:"Fabric or print",line:"Outfit",fmt:"{} fabric",opts:["Plain cotton",["African wax print","African wax print fabric"],"Denim","Leather","Linen","Silk","Knit"]},
+  {id:"colors",type:"one",label:"Main clothing colours",line:"Outfit",fmt:"mainly {}",opts:["Neutrals","Earth tones","Black","White","Navy","Red","Green","Yellow","Bright mixed colours","Pastels"]},
+  {id:"acc",type:"many",label:"Accessories",line:"Outfit",opts:["Necklace","Bracelets","Watch","Rings","Scarf","Bag","Headphones","Belt","Tool of their trade"]},
+  {id:"shoes",type:"one",label:"Footwear",line:"Outfit",opts:["Barefoot","Sandals","Sneakers","Boots","Dress shoes","Heels"]},
+  {id:"standout",type:"text",label:"What should people remember about them?",ph:"For example a silver streak in the hair or a scar on the left hand"},
+ ]},
+ { id:"image", nav:"Image setup", z:"none", title:"How should the image look?", hint:"For a character you will reuse, pick the character sheet. It gives you the front, side and back on one image.", fields:[
+  {id:"art",type:"one",label:"Art style",opts:["Photorealistic photo","Cinematic film still",["3D animated film","3D animated film-style render"],"Anime illustration",["Comic book","comic book illustration"],"Oil painting","Watercolour painting","Pencil sketch","Pixel art",["Game concept art","video game concept art"]]},
+  {id:"frame",type:"one",label:"Framing",noCustom:1,opts:[["Close-up","close-up portrait"],["Head and shoulders","head-and-shoulders portrait"],["Half body","half-body shot"],["Three-quarter body","three-quarter body shot"],["Full body","full-body shot from head to toe"],["Character sheet","character reference sheet with front, side and back views"]]},
+  {id:"angle",type:"one",label:"Camera angle",line:"Scene",noCustom:1,opts:[["Eye level","eye-level view"],["Low angle","low-angle view"],["High angle","high-angle view"],["Side profile","side profile"],["Three-quarter view","three-quarter view"]]},
+  {id:"pose",type:"one",label:"Pose",line:"Scene",opts:["Standing relaxed","Arms crossed","Hands on hips","Walking","Sitting","Doing their job","Looking over the shoulder"]},
+  {id:"bg",type:"one",label:"Background",line:"Scene",fmt:"background: {}",opts:[["Plain studio","plain studio background"],["Plain white","plain white background"],["Their workplace","at their workplace"],["A street in their country","on a street in {origin}"],["At home","at home"],["In nature","in nature"],["A busy market","at a busy market"]]},
+  {id:"light",type:"one",label:"Lighting",line:"Scene",fmt:"{} lighting",opts:[["Soft natural","soft natural light"],["Golden hour","golden hour light"],["Studio","studio lighting"],["Dramatic","dramatic lighting"],["Neon","neon lighting"],["Overcast","overcast daylight"],["Candlelight","candlelight"]]},
+  {id:"aspect",type:"one",label:"Image shape",noCustom:1,opts:["1:1 Square","9:16 TikTok and Reels","16:9 Wide video","2:3 Portrait","3:2 Landscape","4:5 Instagram post"]},
+  {id:"series",type:"one",label:"Will you make several images of this character?",noCustom:1,opts:["Yes, keep the character identical"]},
+ ]},
+ { id:"final", nav:"Your prompt", z:"none", final:true },
+];
+
+const LINES = ["Body","Skin","Face","Eyes","Nose, mouth and ears","Hair","Personality and expression","Outfit","Scene"];
+const IMPORTANT = ["sex","age","origin","height","build","tone","faceShape","eyeColor","hairLen","hairCol","expression","outfit","art","frame","bg"];
+const FORMATS = {
+  any:{label:"Any AI tool",help:"Written as plain sentences. Paste it into ChatGPT, Gemini, Grok, Flux or any tool that takes a written description."},
+  mj:{label:"Midjourney",help:"One line, with the image shape and exclusions as parameters at the end."},
+  sd:{label:"Stable Diffusion",help:"Comma-separated tags. Put the first box in the prompt field and the second in the negative prompt field."},
+  json:{label:"JSON",help:"Structured data, for tools and workflows that accept a JSON prompt."},
+};
+const EXAMPLE = {a:{name:"Manka",sex:"Female",age:34,origin:"Cameroon",ethnic:"Bamileke",job:"nurse",era:"Present day",height:"Tall",build:"Athletic",posture:"Upright and confident",shoulders:"Broad",hands:"Long-fingered",tone:"Deep brown",undertone:"Warm",texture:"Visible pores",marks:["Beauty mark","Laugh lines"],faceShape:"Oval",cheeks:"High",jaw:"Defined",eyeColor:"Dark brown",eyeShape:"Almond",brows:"Natural",nose:"Broad",lips:"Full",teeth:"Gap in the front teeth",piercings:["Hoop earrings"],hairLen:"Shoulder-length",hairTex:"Coily",hairCol:"Black",hairStyle:"Box braids",traits:["Kind","Confident"],expression:"Warm smile",outfit:"Traditional dress",fabric:"African wax print",colors:"Bright mixed colours",art:"Photorealistic photo",frame:"Full body",pose:"Standing relaxed",bg:"A street in their country",light:"Golden hour",aspect:"2:3 Portrait"},c:{}};
+
+/* Interface text */
+const T = {
+ en:{surprise:"Surprise me",reset:"Start over",resetArm:"Tap again to clear everything",soFar:"Prompt so far",example:"Example",copy:"Copy",useExample:"Fill the form with this example",step:(i,n)=>`Step ${i} of ${n}`,next:"Next: ",back:"Back",minorNote:"This character is under 18, so chest, waist and hip questions are hidden and the prompt asks for modest, age-appropriate clothing.",pickOne:"pick one",pickAny:"pick any",writeOwn:"+ Write my own",ownPh:"Describe it in your own words",clearAge:"Clear age",ageSlider:"Age slider",years:"Years",details:(a,b)=>`${a} of ${b} details answered`,words:"words",ready:"Your prompt is ready",readyHint:"Copy it and paste it into your AI tool. You can edit the text here first.",exTitle:"This is an example prompt",exHint:"You have not answered any questions yet, so this shows an example. Answer the questions or tap Surprise me to make your own.",formatAria:"Prompt format",prompt:"Prompt",copyPrompt:"Copy prompt",neg:"Negative prompt",copyNeg:"Copy negative prompt",blank:"Still blank",blankHint:"The AI tool will choose these for you. Tap one to answer it.",allFilled:"All the key details are filled in",promptLang:"Prompt language",langNote:"Many image tools give better results with English prompts.",copied:"Copied",selected:"Text selected. Press copy on your device",nav:"Question sections",panel:"Prompt so far"},
+ fr:{surprise:"Surprenez-moi",reset:"Recommencer",resetArm:"Appuyez encore pour tout effacer",soFar:"Prompt en cours",example:"Exemple",copy:"Copier",useExample:"Remplir le formulaire avec cet exemple",step:(i,n)=>`Étape ${i} sur ${n}`,next:"Suivant : ",back:"Retour",minorNote:"Ce personnage a moins de 18 ans. Les questions sur la poitrine, la taille et les hanches sont donc masquées, et le prompt demande une tenue modeste adaptée à son âge.",pickOne:"un seul choix",pickAny:"plusieurs choix",writeOwn:"+ Écrire ma réponse",ownPh:"Décrivez avec vos propres mots",clearAge:"Effacer l'âge",ageSlider:"Curseur de l'âge",years:"Ans",details:(a,b)=>`${a} détail${a>1?"s":""} rempli${a>1?"s":""} sur ${b}`,words:"mots",ready:"Votre prompt est prêt",readyHint:"Copiez-le et collez-le dans votre outil d'IA. Vous pouvez d'abord modifier le texte ici.",exTitle:"Voici un exemple de prompt",exHint:"Vous n'avez encore répondu à aucune question, cet écran montre donc un exemple. Répondez aux questions ou appuyez sur Surprenez-moi pour créer le vôtre.",formatAria:"Format du prompt",prompt:"Prompt",copyPrompt:"Copier le prompt",neg:"Prompt négatif",copyNeg:"Copier le prompt négatif",blank:"Encore vide",blankHint:"L'outil d'IA choisira ces détails à votre place. Appuyez sur l'un d'eux pour y répondre.",allFilled:"Tous les détails essentiels sont remplis",promptLang:"Langue du prompt",langNote:"Beaucoup d'outils d'image donnent de meilleurs résultats avec un prompt en anglais.",copied:"Copié",selected:"Texte sélectionné. Copiez-le depuis votre appareil",nav:"Sections de questions",panel:"Prompt en cours"},
+};
+const FORMATS_FR = {
+  any:{label:"Tout outil d'IA",help:"Rédigé en phrases simples. Collez-le dans ChatGPT, Gemini, Grok, Flux ou tout outil qui accepte une description écrite."},
+  mj:{label:"Midjourney",help:"Une seule ligne, avec le format de l'image et les exclusions en paramètres à la fin."},
+  sd:{label:"Stable Diffusion",help:"Des mots-clés séparés par des virgules. Mettez le premier cadre dans le champ du prompt et le second dans le champ du prompt négatif."},
+  json:{label:"JSON",help:"Des données structurées, pour les outils et les processus qui acceptent un prompt en JSON."},
+};
+const FR_LINES = {"Body":"Corps","Skin":"Peau","Face":"Visage","Eyes":"Yeux","Nose, mouth and ears":"Nez, bouche et oreilles","Hair":"Cheveux","Personality and expression":"Personnalité et expression","Outfit":"Tenue","Scene":"Scène"};
+const FR_STEPS = {
+ who:{nav:"Identité",title:"Qui est ce personnage ?",hint:"Toutes les questions sont facultatives. L'outil d'IA décidera de ce que vous laissez vide. Appuyez de nouveau sur un choix pour l'effacer."},
+ body:{nav:"Corps",title:"À quoi ressemble le corps ?",hint:"La taille et la carrure modifient le mannequin à mesure que vous répondez."},
+ skin:{nav:"Peau",title:"Comment est la peau ?",hint:"Le teint choisi colore le mannequin."},
+ face:{nav:"Visage",title:"Quelle est la forme du visage ?",hint:"Voici la structure du visage. Les yeux, le nez et la bouche viennent ensuite."},
+ eyes:{nav:"Yeux",title:"Comment sont les yeux ?",hint:"Le regard attire l'attention en premier : ces détails changent beaucoup la ressemblance."},
+ mouth:{nav:"Nez, bouche, oreilles",title:"Nez, bouche et oreilles",hint:"De petites différences ici donnent au visage l'air d'une personne bien précise."},
+ hair:{nav:"Cheveux",title:"Comment sont les cheveux ?",hint:"La longueur et la couleur s'affichent sur le mannequin. Nommer une coiffure, comme les box braids, marche souvent mieux que la décrire."},
+ style:{nav:"Personnalité, tenue",title:"Personnalité et tenue",hint:"La personnalité se voit dans l'expression et dans les vêtements du personnage."},
+ image:{nav:"Réglages de l'image",title:"À quoi doit ressembler l'image ?",hint:"Pour un personnage à réutiliser, choisissez la fiche de personnage : elle montre la face, le profil et le dos sur une seule image."},
+ final:{nav:"Votre prompt"},
+};
+/* French for each question. "o" maps an English option to its French label, or to [label, prompt phrase]. */
+const FR = {
+ name:{label:"Nom du personnage",ph:"Facultatif. Par exemple Manka"},
+ sex:{label:"Sexe",o:{Female:"Féminin",Male:"Masculin",Intersex:"Intersexe"}},
+ pres:{label:"Quelle apparence a-t-il ?",fmt:"d'apparence {}",o:{Feminine:["Féminine","d'apparence féminine"],Masculine:["Masculine","d'apparence masculine"],Androgynous:["Androgyne","d'apparence androgyne"]}},
+ age:{label:"Âge"},
+ origin:{label:"Pays d'origine",ph:"Commencez à écrire un pays"},
+ origin2:{label:"Deuxième pays, en cas d'origines mixtes",ph:"Facultatif"},
+ ethnic:{label:"Ethnie ou région",ph:"Par exemple Bamiléké, Yoruba, Pendjabi, Sami"},
+ job:{label:"Métier",ph:"Commencez à écrire un métier, ou le vôtre"},
+ era:{label:"À quelle époque vit-il ?",fmt:"époque : {}",o:{"Present day":["Aujourd'hui","à l'époque actuelle"],"1990s":["Années 1990","dans les années 1990"],"1970s":["Années 1970","dans les années 1970"],"1950s":["Années 1950","dans les années 1950"],"1920s":["Années 1920","dans les années 1920"],"1800s":["Années 1800","dans les années 1800"],"Medieval times":["Moyen Âge","au Moyen Âge"],"Ancient times":["Antiquité","dans l'Antiquité"],"Near future":["Futur proche","dans un futur proche"],"Far future":["Futur lointain","dans un futur lointain"],"Fantasy world":["Monde fantastique","dans un monde fantastique"]}},
+ height:{label:"Taille",fmt:"taille : {}",ownPh:"Par exemple 175 cm",o:{"Very short":["Très petite","très petite taille"],Short:["Petite","petite taille"],Average:["Moyenne","taille moyenne"],Tall:["Grande","grande taille"],"Very tall":["Très grande","très grande taille"]}},
+ build:{label:"Carrure",fmt:"carrure {}",o:{Slim:"Mince",Lean:"Élancée",Athletic:"Athlétique",Average:"Moyenne",Muscular:"Musclée",Stocky:"Trapue",Curvy:["Formes généreuses","silhouette aux formes généreuses"],"Plus-size":"Forte",Heavyset:"Corpulente"}},
+ muscle:{label:"Tonus musculaire",fmt:"muscles {}",o:{Soft:["Souple","corps souple et peu tonique"],"Lightly toned":["Légèrement tonique","muscles légèrement toniques"],Toned:["Tonique","muscles bien toniques"],Defined:["Dessiné","muscles bien dessinés"]}},
+ posture:{label:"Posture",fmt:"posture {}",o:{"Upright and confident":"Droite et assurée",Relaxed:"Détendue",Slouched:"Avachie",Stiff:"Raide",Stooped:"Voûtée"}},
+ neck:{label:"Cou",fmt:"cou {}",o:{Short:"Court",Average:"Moyen",Long:"Long",Thick:"Épais",Slender:"Fin"}},
+ shoulders:{label:"Épaules",fmt:"épaules {}",o:{Narrow:"Étroites",Average:"Moyennes",Broad:"Larges",Square:"Carrées",Sloped:"Tombantes"}},
+ chest:{label:"Torse et poitrine",fmt:"torse {}",o:{Flat:"Plat",Narrow:"Étroit",Average:"Moyen",Broad:"Large",Barrel:"En tonneau","Small bust":["Petite poitrine","petite poitrine"],"Medium bust":["Poitrine moyenne","poitrine moyenne"],"Full bust":["Forte poitrine","forte poitrine"]}},
+ waist:{label:"Tour de taille",fmt:"taille {}",o:{Narrow:"Fine",Average:"Moyenne",Thick:"Épaisse",Straight:"Droite"}},
+ hips:{label:"Hanches",fmt:"hanches {}",o:{Narrow:"Étroites",Average:"Moyennes",Wide:"Larges"}},
+ arms:{label:"Bras",fmt:"bras {}",o:{Slender:"Fins",Average:"Moyens",Toned:"Toniques",Muscular:"Musclés",Soft:"Ronds",Long:"Longs",Short:"Courts"}},
+ legs:{label:"Jambes",fmt:"jambes {}",o:{Slender:"Fines",Average:"Moyennes",Muscular:"Musclées",Thick:"Épaisses",Long:"Longues",Short:"Courtes",Bowed:"Arquées"}},
+ hands:{label:"Mains",fmt:"mains {}",o:{"Small and delicate":"Petites et délicates","Long-fingered":"Aux longs doigts","Large and strong":"Grandes et fortes",Calloused:"Calleuses","Soft and well-kept":"Douces et soignées"}},
+ feet:{label:"Pieds",fmt:"pieds {}",o:{Small:"Petits",Average:"Moyens",Large:"Grands",Narrow:"Étroits",Wide:"Larges"}},
+ diff:{label:"Handicap ou particularité physique",o:{"Uses a wheelchair":"Se déplace en fauteuil roulant","Uses a cane":"Marche avec une canne","Prosthetic arm":"Bras prothétique","Prosthetic leg":"Jambe prothétique","Limb difference":"Membre atypique",Dwarfism:"Nanisme","Curved spine":"Colonne vertébrale courbée","Hearing aids":"Appareils auditifs"}},
+ tone:{label:"Teint",fmt:"peau {}",o:{Porcelain:"Porcelaine",Ivory:"Ivoire",Fair:"Claire",Beige:"Beige",Olive:"Olive",Tan:"Hâlée",Caramel:"Caramel","Golden brown":"Brun doré",Chestnut:"Châtaigne",Brown:"Brune","Deep brown":"Brun foncé",Ebony:"Ébène"}},
+ undertone:{label:"Sous-ton",fmt:"sous-ton {}",o:{Cool:"Froid",Neutral:"Neutre",Warm:"Chaud",Golden:"Doré",Red:"Rouge",Olive:"Olive"}},
+ texture:{label:"Texture",fmt:"peau {}",o:{Smooth:"Lisse","Visible pores":["Pores visibles","peau naturelle aux pores visibles"],Oily:"Grasse",Dry:"Sèche",Matte:"Mate",Glowing:"Éclatante",Weathered:"Burinée"}},
+ marks:{label:"Marques et particularités",o:{Freckles:"Taches de rousseur",Moles:"Grains de beauté","Beauty mark":"Grain de beauté marqué",Birthmark:"Tache de naissance",Vitiligo:"Vitiligo",Albinism:"Albinisme","Sun spots":"Taches solaires",Acne:"Acné","Acne scars":"Cicatrices d'acné",Wrinkles:"Rides","Laugh lines":"Rides du sourire","Dark circles":"Cernes","Facial scar":"Cicatrice au visage","Body scars":"Cicatrices sur le corps","Burn scars":"Cicatrices de brûlure","Tribal scarification":"Scarifications traditionnelles"}},
+ tattoos:{label:"Tatouages",fmt:"tatouages : {}",o:{None:["Aucun","aucun tatouage visible"],"Small and discreet":["Petit et discret","un petit tatouage discret"],"One full sleeve":["Une manche complète","une manche de tatouages complète"],Several:["Plusieurs","plusieurs tatouages visibles"],"Neck or face":["Cou ou visage","tatouages sur le cou ou le visage"],"Covered in tattoos":["Couvert de tatouages","couvert de tatouages"]}},
+ faceShape:{label:"Forme du visage",fmt:"visage {}",o:{Oval:"Ovale",Round:"Rond",Square:"Carré","Heart-shaped":"En cœur",Diamond:"En losange",Long:"Allongé",Triangular:"Triangulaire"}},
+ forehead:{label:"Front",fmt:"front {}",o:{Low:"Bas",Average:"Moyen",High:"Haut",Broad:"Large",Narrow:"Étroit"}},
+ cheeks:{label:"Pommettes",fmt:"pommettes {}",o:{Soft:"Douces",High:"Hautes",Prominent:"Saillantes",Hollow:"Creuses","Full cheeks":["Joues pleines","joues pleines"]}},
+ jaw:{label:"Mâchoire",fmt:"mâchoire {}",o:{Soft:"Douce",Rounded:"Arrondie",Defined:"Bien dessinée",Square:"Carrée",Narrow:"Étroite"}},
+ chin:{label:"Menton",fmt:"menton {}",o:{Rounded:"Rond",Pointed:"Pointu",Square:"Carré",Cleft:"À fossette",Receding:"Fuyant","Double chin":["Double menton","double menton"]}},
+ facialHair:{label:"Pilosité du visage",o:{"Clean-shaven":"Rasé de près",Stubble:"Barbe de quelques jours",Moustache:"Moustache",Goatee:"Bouc","Short beard":"Barbe courte","Full beard":"Barbe fournie","Long beard":"Barbe longue","Grey beard":"Barbe grise"}},
+ eyeColor:{label:"Couleur des yeux",fmt:"yeux {}",o:{"Dark brown":"Marron foncé",Brown:"Marron",Hazel:"Noisette",Amber:"Ambre",Green:"Verts",Blue:"Bleus",Grey:"Gris","Two different colours":["Deux couleurs différentes","yeux de deux couleurs différentes"]}},
+ eyeShape:{label:"Forme des yeux",fmt:"yeux {}",o:{Almond:"En amande",Round:"Ronds",Hooded:"Aux paupières tombantes",Monolid:"Sans pli de paupière",Upturned:"Relevés",Downturned:"Tombants","Deep-set":"Enfoncés"}},
+ eyeSize:{label:"Taille des yeux",fmt:"yeux {}",o:{Small:"Petits",Average:"Moyens",Large:"Grands"}},
+ eyeGap:{label:"Écart entre les yeux",fmt:"yeux {}",o:{"Close-set":["Rapprochés","yeux rapprochés"],Average:["Moyen","écart moyen entre les yeux"],"Wide-set":["Écartés","yeux écartés"]}},
+ brows:{label:"Sourcils",fmt:"sourcils {}",o:{Thin:"Fins",Natural:"Naturels",Thick:"Épais",Bushy:"Broussailleux",Arched:"Arqués",Straight:"Droits"}},
+ lashes:{label:"Cils",fmt:"cils {}",o:{Short:"Courts",Natural:"Naturels",Long:"Longs",Thick:"Épais"}},
+ eyewear:{label:"Lunettes",o:{None:["Aucune","sans lunettes"],"Round glasses":"Lunettes rondes","Rectangular glasses":"Lunettes rectangulaires",Sunglasses:"Lunettes de soleil","Eye patch":"Cache-œil"}},
+ nose:{label:"Forme du nez",fmt:"nez {}",o:{Straight:"Droit",Button:"Petit et rond",Snub:"Retroussé",Roman:"Romain",Aquiline:"Aquilin",Hooked:"Crochu",Flat:"Plat",Broad:"Large"}},
+ noseSize:{label:"Taille du nez",fmt:"nez {}",o:{Small:"Petit",Average:"Moyen",Large:"Grand"}},
+ nostrils:{label:"Narines",fmt:"narines {}",o:{Narrow:"Étroites",Medium:"Moyennes",Wide:"Larges"}},
+ lips:{label:"Épaisseur des lèvres",fmt:"lèvres {}",o:{Thin:"Fines",Medium:"Moyennes",Full:"Pleines","Very full":"Très pleines"}},
+ lipShape:{label:"Forme de la bouche",o:{"Defined cupid's bow":"Arc de Cupidon marqué","Wide mouth":"Bouche large","Small mouth":"Petite bouche","Downturned corners":"Coins de la bouche tombants"}},
+ lipColor:{label:"Couleur des lèvres",fmt:"lèvres {}",o:{Natural:"Naturelles",Dark:"Foncées",Pink:"Roses",Nude:"Nude","Red lipstick":["Rouge à lèvres rouge","rouge à lèvres rouge"],"Berry lipstick":["Rouge à lèvres prune","rouge à lèvres prune"]}},
+ teeth:{label:"Dents",o:{"Straight white teeth":"Dents droites et blanches","Gap in the front teeth":["Dents du bonheur","espace entre les dents de devant"],"Slightly crooked teeth":"Dents légèrement de travers","Gold tooth":"Dent en or",Braces:"Appareil dentaire","Missing tooth":"Dent manquante"}},
+ ears:{label:"Oreilles",fmt:"oreilles {}",o:{Small:"Petites",Average:"Moyennes",Large:"Grandes",Protruding:"Décollées"}},
+ piercings:{label:"Piercings",o:{"Ear studs":"Clous d'oreilles","Hoop earrings":"Créoles","Stretched earlobes":"Lobes élargis","Nose stud":"Clou de nez","Septum ring":"Anneau au septum","Lip ring":"Anneau à la lèvre","Eyebrow ring":"Anneau au sourcil"}},
+ hairLen:{label:"Longueur",fmt:"cheveux {}",o:{Bald:["Chauve","tête chauve"],"Buzz cut":["Coupe très courte","coupe très courte à la tondeuse"],Short:"Courts","Chin-length":["Au menton","cheveux au menton"],"Shoulder-length":["Aux épaules","cheveux aux épaules"],Long:"Longs","Very long":"Très longs"}},
+ hairTex:{label:"Texture",fmt:"cheveux {}",o:{Straight:"Raides",Wavy:"Ondulés",Curly:"Bouclés",Coily:"Frisés",Kinky:"Crépus"}},
+ hairCol:{label:"Couleur",fmt:"cheveux {}",o:{Black:"Noirs","Dark brown":"Brun foncé",Brown:"Bruns","Light brown":"Châtain clair",Blonde:"Blonds",Red:"Roux",Auburn:"Auburn",Grey:"Gris",White:"Blancs","Salt and pepper":"Poivre et sel","Dyed blue":["Teints en bleu","cheveux teints en bleu"],"Dyed pink":["Teints en rose","cheveux teints en rose"]}},
+ hairStyle:{label:"Coiffure",o:{"Loose and natural":["Lâchés et naturels","cheveux lâchés et naturels"],Afro:["Afro","coupe afro"],"Box braids":["Box braids","box braids"],Cornrows:["Nattes collées (cornrows)","nattes collées (cornrows)"],Locs:["Locks","locks"],Twists:["Vanilles (twists)","vanilles (twists)"],"Bantu knots":["Bantu knots","bantu knots"],Fade:["Dégradé","coupe dégradée"],"Pixie cut":["Coupe garçonne","coupe garçonne"],Bob:["Carré","coupe au carré"],Ponytail:["Queue de cheval","queue de cheval"],Bun:["Chignon","chignon"],"Top knot":["Chignon haut","chignon haut"],Mohawk:["Crête","coupe en crête"],"Slicked back":["Plaqués en arrière","cheveux plaqués en arrière"],"Curtain bangs":["Frange rideau","frange rideau"]}},
+ hairline:{label:"Ligne des cheveux",fmt:"ligne des cheveux {}",o:{Straight:"Droite",Rounded:"Arrondie","Widow's peak":"En pointe",High:"Haute",Receding:"Dégarnie"}},
+ headwear:{label:"Couvre-chef",o:{None:["Aucun","sans couvre-chef"],"Head wrap":"Foulard noué",Hijab:"Hijab",Turban:"Turban",Kufi:"Kufi",Beanie:"Bonnet","Baseball cap":"Casquette","Wide-brim hat":"Chapeau à large bord","Sun hat":"Chapeau de soleil"}},
+ traits:{label:"Personnalité",o:{Confident:"Confiance en soi",Shy:"Timidité",Kind:"Gentillesse",Serious:"Sérieux",Funny:"Humour",Mysterious:"Mystère",Brave:"Courage",Wise:"Sagesse",Ambitious:"Ambition",Rebellious:"Esprit rebelle",Elegant:"Élégance",Gentle:"Douceur",Tough:"Dureté",Cheerful:"Gaieté",Tired:"Fatigue",Anxious:"Anxiété"}},
+ expression:{label:"Expression du visage",fmt:"expression {}",o:{"Warm smile":["Sourire chaleureux","sourire chaleureux"],"Big laugh":["Grand rire","en train de rire"],"Calm neutral":"Calme et neutre",Serious:"Sérieuse",Focused:"Concentrée",Surprised:"Surprise",Sad:"Triste",Angry:"En colère","Slight smirk":["Sourire en coin","léger sourire en coin"]}},
+ outfit:{label:"Style de tenue",fmt:"tenue {}",o:{Casual:"Décontractée","Smart business":["Tenue d'affaires","tenue d'affaires élégante"],"Work uniform":["Uniforme de travail","uniforme de travail adapté à son métier"],"Traditional dress":["Tenue traditionnelle","tenue traditionnelle ({origin})"],Streetwear:["Streetwear","tenue streetwear"],Sportswear:["Tenue de sport","tenue de sport"],Formal:"Formelle",Vintage:"Vintage","Rugged outdoor":["Tenue d'extérieur robuste","vêtements d'extérieur robustes"],"Fantasy armour":["Armure fantastique","armure fantastique"],Futuristic:"Futuriste"}},
+ fabric:{label:"Tissu ou motif",fmt:"tissu : {}",o:{"Plain cotton":["Coton uni","coton uni"],"African wax print":["Pagne wax africain","tissu en pagne wax africain"],Denim:["Jean","denim"],Leather:["Cuir","cuir"],Linen:["Lin","lin"],Silk:["Soie","soie"],Knit:["Maille","maille"]}},
+ colors:{label:"Couleurs principales des vêtements",fmt:"couleurs dominantes : {}",o:{Neutrals:"Neutres","Earth tones":"Tons terreux",Black:"Noir",White:"Blanc",Navy:"Bleu marine",Red:"Rouge",Green:"Vert",Yellow:"Jaune","Bright mixed colours":"Couleurs vives variées",Pastels:"Pastels"}},
+ acc:{label:"Accessoires",o:{Necklace:"Collier",Bracelets:"Bracelets",Watch:"Montre",Rings:"Bagues",Scarf:"Écharpe",Bag:"Sac",Headphones:"Casque audio",Belt:"Ceinture","Tool of their trade":"Outil de son métier"}},
+ shoes:{label:"Chaussures",o:{Barefoot:"Pieds nus",Sandals:"Sandales",Sneakers:"Baskets",Boots:"Bottes","Dress shoes":"Chaussures de ville",Heels:"Talons"}},
+ standout:{label:"Que doit-on retenir de lui ?",ph:"Par exemple une mèche argentée ou une cicatrice sur la main gauche"},
+ art:{label:"Style artistique",o:{"Photorealistic photo":["Photo réaliste","photo photoréaliste","une "],"Cinematic film still":["Image de film","image de film cinématographique","une "],"3D animated film":["Film d'animation 3D","rendu 3D style film d'animation","un "],"Anime illustration":["Illustration anime","illustration style anime","une "],"Comic book":["Bande dessinée","illustration de bande dessinée","une "],"Oil painting":["Peinture à l'huile","peinture à l'huile","une "],"Watercolour painting":["Aquarelle","aquarelle","une "],"Pencil sketch":["Croquis au crayon","croquis au crayon","un "],"Pixel art":["Pixel art","image en pixel art","une "],"Game concept art":["Concept art de jeu vidéo","concept art de jeu vidéo","un "]}},
+ frame:{label:"Cadrage",o:{"Close-up":["Gros plan","portrait en gros plan"],"Head and shoulders":["Tête et épaules","portrait tête et épaules"],"Half body":["Mi-corps","plan à mi-corps"],"Three-quarter body":["Trois quarts du corps","plan aux trois quarts du corps"],"Full body":["Corps entier","plan en pied de la tête aux pieds"],"Character sheet":["Fiche de personnage","fiche de personnage avec vues de face, de profil et de dos"]}},
+ angle:{label:"Angle de vue",o:{"Eye level":["À hauteur des yeux","vue à hauteur des yeux"],"Low angle":["Contre-plongée","vue en contre-plongée"],"High angle":["Plongée","vue en plongée"],"Side profile":["Profil","vue de profil"],"Three-quarter view":["Vue de trois quarts","vue de trois quarts"]}},
+ pose:{label:"Pose",o:{"Standing relaxed":["Debout, détendue","debout, en position détendue"],"Arms crossed":"Bras croisés","Hands on hips":"Mains sur les hanches",Walking:"En train de marcher",Sitting:"En position assise","Doing their job":"En plein travail","Looking over the shoulder":"Regard par-dessus l'épaule"}},
+ bg:{label:"Arrière-plan",fmt:"arrière-plan : {}",o:{"Plain studio":["Studio uni","fond de studio uni"],"Plain white":["Blanc uni","fond blanc uni"],"Their workplace":["Son lieu de travail","sur son lieu de travail"],"A street in their country":["Une rue de son pays","dans une rue ({origin})"],"At home":["À la maison","à la maison"],"In nature":["Dans la nature","dans la nature"],"A busy market":["Un marché animé","dans un marché animé"]}},
+ light:{label:"Lumière",fmt:"lumière {}",o:{"Soft natural":["Naturelle et douce","lumière naturelle douce"],"Golden hour":["Heure dorée","lumière dorée de fin de journée"],Studio:["Studio","éclairage de studio"],Dramatic:["Dramatique","éclairage dramatique"],Neon:["Néon","éclairage néon"],Overcast:["Ciel couvert","lumière de jour sous un ciel couvert"],Candlelight:["Bougie","lumière de bougie"]}},
+ aspect:{label:"Format de l'image",o:{"1:1 Square":"1:1 Carré","9:16 TikTok and Reels":"9:16 TikTok et Reels","16:9 Wide video":"16:9 Vidéo large","2:3 Portrait":"2:3 Portrait","3:2 Landscape":"3:2 Paysage","4:5 Instagram post":"4:5 Publication Instagram"}},
+ series:{label:"Allez-vous créer plusieurs images de ce personnage ?",o:{"Yes, keep the character identical":"Oui, garder le personnage identique"}},
+};
+const PT = {
+ en:{real:"Realistic skin texture, natural proportions and accurate anatomy.",plain:"Natural proportions and accurate anatomy.",minor:"Age-appropriate, modest clothing. Wholesome and non-sexualized.",series:"Keep this character's face, body, skin and hair identical across every image.",noText:"No text, logos or watermarks.",format:"Image format: ",create:"Create ",image:"an image",of:" of ",name:n=>"Character name: "+n+" (do not write the name in the image).",detail:"Distinctive detail: ",sep:": ",task:"Generate an image of this character",mjNo:"text, watermark, logo",neg:"blurry, low quality, deformed hands, extra fingers, extra limbs, distorted face, text, watermark, logo",negReal:", cartoon, illustration",negMinor:", nsfw, suggestive",modest:"modest age-appropriate clothing",tags:["highly detailed","sharp focus"]},
+ fr:{real:"Texture de peau réaliste, proportions naturelles et anatomie exacte.",plain:"Proportions naturelles et anatomie exacte.",minor:"Tenue modeste adaptée à l'âge. Image saine et non sexualisée.",series:"Garde le visage, le corps, la peau et les cheveux de ce personnage identiques sur toutes les images.",noText:"Pas de texte, de logo ni de filigrane.",format:"Format de l'image : ",create:"Crée ",image:"une image",of:" d'",name:n=>"Nom du personnage : "+n+" (ne pas écrire le nom sur l'image).",detail:"Détail distinctif : ",sep:" : ",task:"Génère une image de ce personnage",mjNo:"texte, filigrane, logo",neg:"flou, basse qualité, mains déformées, doigts en trop, membres en trop, visage déformé, texte, filigrane, logo",negReal:", dessin animé, illustration",negMinor:", nsfw, suggestif",modest:"tenue modeste adaptée à l'âge",tags:["très détaillé","mise au point nette"]},
+};
+
+/* Normalise options and index fields */
+const FLAT = [], F = {}, STEP_OF = {};
+STEPS.forEach((st, i) => (st.fields || []).forEach(f => {
+  if (f.opts) f.opts = f.opts.map(o => typeof o === "string" ? {l:o} : {l:o[0], p:o[1] || null, c:o[2] || null});
+  FLAT.push(f); F[f.id] = f; STEP_OF[f.id] = i;
+}));
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STORE = "character-prompt-creator-v1";
+let S = {a:{}, c:{}, step:0, fmt:"any"};
+try { const saved = JSON.parse(localStorage.getItem(STORE)); if (saved && saved.a) S = Object.assign(S, saved); } catch (e) {}
+if (!(S.step >= 0 && S.step < STEPS.length)) S.step = 0;
+if (!S.lang) S.lang = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+if (!S.plang) S.plang = S.lang;
+const t = k => T[S.lang][k];
+const isFr = () => S.lang === "fr";
+const pFr = () => S.plang === "fr";
+const frF = f => FR[f.id] || {};
+const fLabel = f => (isFr() && frF(f).label) || f.label;
+function frOpt(f, o) {
+  const e = (frF(f).o || {})[o.l];
+  return e == null ? null : (Array.isArray(e) ? e : [e]);
+}
+const oLabel = (f, o) => (isFr() && frOpt(f, o)) ? frOpt(f, o)[0] : o.l;
+const fmtOf = f => pFr() ? frF(f).fmt : f.fmt;
+const stepText = (st, k) => (isFr() && FR_STEPS[st.id][k]) || st[k];
+const lineName = l => pFr() ? FR_LINES[l] : l;
+function loc(id, lang) {
+  const v = text(id);
+  if (!v) return "";
+  const low = v.toLowerCase();
+  if (id === "origin" || id === "origin2") {
+    const p = COUNTRY_PAIRS.find(x => x[0].toLowerCase() === low || x[1].toLowerCase() === low);
+    return p ? p[lang === "fr" ? 1 : 0] : v;
+  }
+  if (id === "job") {
+    const p = JOB_PAIRS.find(x => x.some(y => y.toLowerCase() === low));
+    if (!p) return v;
+    return lang === "fr" ? (S.a.sex === "Female" ? p[2] : p[1]) : p[0];
+  }
+  return v;
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+
+function isMinor() { return S.a.age != null && S.a.age < 18; }
+function isVis(f) {
+  if (f.adult && isMinor()) return false;
+  if (f.id === "facialHair" && S.a.age != null && S.a.age < 16) return false;
+  if (f.noBald && S.a.hairLen === "Bald") return false;
+  return true;
+}
+function optVis(f, o) { return !(isMinor() && f.adultOpts && f.adultOpts.includes(o.l)); }
+function text(id) { return (S.a[id] == null ? "" : String(S.a[id])).trim(); }
+function fill(s) { return s.replace("{origin}", loc("origin", S.plang) || (pFr() ? "pays d'origine" : "their home country")); }
+function optPhrase(f, o) {
+  if (pFr()) {
+    const e = frOpt(f, o);
+    if (e) {
+      if (e[1]) return fill(e[1]);
+      const low = e[0].toLowerCase(), fm = frF(f).fmt;
+      return fm ? fm.replace("{}", low) : low;
+    }
+  }
+  if (o.p) return fill(o.p);
+  const low = o.l.toLowerCase();
+  return f.fmt ? f.fmt.replace("{}", low) : low;
+}
+function phrases(f) {
+  if (!isVis(f)) return [];
+  if (f.type === "text") return text(f.id) ? [text(f.id)] : [];
+  if (f.type === "age") return S.a.age != null ? [S.a.age + "-year-old"] : [];
+  const own = (S.c[f.id] || "").trim();
+  const fm = fmtOf(f);
+  const ownP = own ? (fm ? fm.replace("{}", own) : own) : null;
+  const v = S.a[f.id];
+  if (f.type === "one") {
+    if (ownP) return [ownP];
+    const o = v && f.opts.find(x => x.l === v);
+    return o && optVis(f, o) ? [optPhrase(f, o)] : [];
+  }
+  const out = (v || []).map(l => f.opts.find(x => x.l === l)).filter(Boolean).map(o => optPhrase(f, o));
+  if (ownP) out.push(ownP);
+  return out;
+}
+const answered = f => phrases(f).length > 0;
+const hasAny = () => FLAT.some(answered);
+function article(s) { return (/^[aeiou]/i.test(s) || /^(8|11|18)/.test(s) ? "an " : "a ") + s; }
+
+function frSubject() {
+  const age = S.a.age, sex = S.a.sex;
+  let noun;
+  if (age != null && age < 3) noun = sex === "Female" ? "un bébé fille" : sex === "Male" ? "un bébé garçon" : "un bébé";
+  else if (age != null && age < 13) noun = sex === "Female" ? "une fille" : sex === "Male" ? "un garçon" : "un enfant";
+  else if (age != null && age < 18) noun = sex === "Female" ? "une adolescente" : sex === "Male" ? "un adolescent" : "un adolescent";
+  else noun = sex === "Female" ? "une femme" : sex === "Male" ? "un homme" : "une personne";
+  if (sex === "Intersex") noun += " intersexe";
+  let out = noun;
+  if (age != null) out += " de " + age + (age > 1 ? " ans" : " an");
+  const presP = phrases(F.pres)[0];
+  if (presP && !((sex === "Female" && S.a.pres === "Feminine") || (sex === "Male" && S.a.pres === "Masculine"))) out += " " + presP;
+  const bits = [];
+  const places = [loc("origin", "fr"), loc("origin2", "fr")].filter(Boolean).join(" et ");
+  if (places) bits.push("origine : " + places);
+  if (text("ethnic")) bits.push("héritage " + text("ethnic"));
+  if (text("job")) bits.push("métier : " + loc("job", "fr"));
+  return bits.length ? out + " (" + bits.join(", ") + ")" : out;
+}
+function subject() {
+  if (pFr()) return frSubject();
+  const age = S.a.age, sex = S.a.sex, young = age != null && age < 18;
+  let noun;
+  if (age != null && age < 3) noun = sex === "Female" ? "baby girl" : sex === "Male" ? "baby boy" : "baby";
+  else if (age != null && age < 13) noun = sex === "Female" ? "girl" : sex === "Male" ? "boy" : "child";
+  else if (young) noun = sex === "Female" ? "teenage girl" : sex === "Male" ? "teenage boy" : "teenager";
+  else noun = sex === "Female" ? "woman" : sex === "Male" ? "man" : "person";
+  if (sex === "Intersex") noun = "intersex " + noun;
+  const pres = S.c.pres ? S.c.pres.trim() : S.a.pres;
+  let presP = phrases(F.pres)[0] || "";
+  if ((sex === "Female" && pres === "Feminine") || (sex === "Male" && pres === "Masculine")) presP = "";
+  const head = [age != null ? age + "-year-old" : "", presP, noun].filter(Boolean).join(" ");
+  let out = article(head);
+  if (text("origin")) out += " from " + loc("origin", "en");
+  if (text("origin2")) out += (text("origin") ? " and " : " with roots in ") + loc("origin2", "en");
+  if (text("ethnic")) out += " of " + text("ethnic") + " heritage";
+  if (text("job")) out += ", who is " + article(loc("job", "en"));
+  return out;
+}
+function model() {
+  const lines = LINES.map(l => [l, FLAT.filter(f => f.line === l).flatMap(phrases)]).filter(x => x[1].length);
+  const art = phrases(F.art)[0] || "", frame = phrases(F.frame)[0] || "";
+  const real = /photo|film still|image de film/i.test(S.a.art || S.c.art || "");
+  const aspect = (S.a.aspect || "").split(" ")[0];
+  const minor = isMinor();
+  const standout = text("standout");
+  const series = !!S.a.series;
+  const P = PT[S.plang];
+  const rules = [real ? P.real : P.plain];
+  if (minor) rules.push(P.minor);
+  if (series) rules.push(P.series);
+  rules.push(P.noText);
+  const closers = rules.slice();
+  if (aspect) closers.push(P.format + aspect + ".");
+  return {P, lines, art, frame, real, aspect, minor, standout, series, rules, closers, sub: subject(), name: text("name")};
+}
+function build() {
+  const m = model(), P = m.P;
+  const all = m.lines.flatMap(l => l[1]);
+  if (m.standout) all.push(m.standout);
+  if (S.fmt === "mj") {
+    const head = [m.art, m.frame, m.sub].filter(Boolean).join(", ");
+    return {main: [head].concat(all).join(", ") + " --ar " + (m.aspect || "2:3") + " --no " + P.mjNo};
+  }
+  if (S.fmt === "sd") {
+    const main = [m.art, m.frame, m.sub].filter(Boolean).concat(all, m.minor ? [P.modest] : [], P.tags).join(", ");
+    let neg = P.neg;
+    if (m.real) neg += P.negReal;
+    if (m.minor) neg += P.negMinor;
+    return {main, neg};
+  }
+  if (S.fmt === "json") {
+    const obj = {task: P.task, name: m.name || undefined, subject: m.sub};
+    m.lines.forEach(l => obj[l[0].toLowerCase().replace(/[^a-z]+/g, "_")] = l[1]);
+    if (m.standout) obj.distinctive_detail = m.standout;
+    obj.image = {style: m.art || undefined, framing: m.frame || undefined, aspect_ratio: m.aspect || undefined};
+    obj.rules = m.rules;
+    return {main: JSON.stringify(obj, null, 2)};
+  }
+  let open = P.create;
+  if (pFr()) {
+    const o = F.art.opts.find(x => x.l === S.a.art), e = o && frOpt(F.art, o);
+    open += m.art ? (e ? e[2] : "une image de style ") + m.art : P.image;
+  } else if (m.art) open += (/ art$/i.test(m.art) ? m.art : article(m.art));
+  else open += P.image;
+  if (m.frame) open += ", " + m.frame + ",";
+  open += P.of + m.sub + ".";
+  let out = open + "\n\n";
+  if (m.name) out += P.name(m.name) + "\n";
+  m.lines.forEach(l => out += lineName(l[0]) + P.sep + l[1].join(", ") + ".\n");
+  if (m.standout) out += P.detail + m.standout + ".\n";
+  out += (m.lines.length || m.name || m.standout ? "\n" : "") + m.closers.join(" ");
+  return {main: out};
+}
+function withExample(fn) {
+  const keep = S;
+  S = {a: EXAMPLE.a, c: EXAMPLE.c, step: keep.step, fmt: keep.fmt, lang: keep.lang, plang: keep.plang};
+  const r = fn();
+  S = keep;
+  return r;
+}
+const current = () => hasAny() ? build() : withExample(build);
+const words = t => (t.trim().match(/\S+/g) || []).length;
+
+/* Mannequin */
+function seg(x1, y1, x2, y2, w) {
+  return `<line class="o" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w + 3}"/><line class="f" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`;
+}
+const joint = (x, y, r) => `<circle class="j" cx="${x}" cy="${y}" r="${r}"/>`;
+function limbs(s) {
+  const X = x => 120 + s * x;
+  return seg(X(-20), 228, X(-21), 320, 21) + seg(X(-21), 320, X(-21), 404, 15) +
+    joint(X(-20), 226, 12) + joint(X(-21), 320, 9.5) + joint(X(-21), 404, 6.5) +
+    `<ellipse class="j" cx="${X(-25)}" cy="${414}" rx="14" ry="6"/>` +
+    seg(X(-44), 96, X(-50), 166, 13) + seg(X(-50), 166, X(-54), 226, 10) +
+    joint(X(-44), 94, 11) + joint(X(-50), 166, 7.5) + joint(X(-54), 226, 5.5) +
+    `<ellipse class="j" cx="${X(-55)}" cy="${242}" rx="7" ry="12"/>`;
+}
+let ruler = `<g id="ruler"><text class="rule-text" id="rulerLabel" x="4" y="12">heads</text>`;
+for (let i = 0; i <= 8; i++) {
+  const y = 20 + i * 50;
+  ruler += `<line class="tick" x1="4" y1="${y}" x2="${i % 2 ? 14 : 20}" y2="${y}"/>`;
+  if (i) ruler += `<text class="rule-text" x="22" y="${y + 3}">${i}</text>`;
+}
+ruler += `</g>`;
+$("#fig").innerHTML = ruler + `
+<g id="figZoom"><g id="figH">
+  <path id="hairBack" class="hair" data-go="hair" hidden/>
+  <circle id="hairAfro" class="hair" data-go="hair" cx="120" cy="34" r="35" hidden/>
+  <g id="figB" class="z-body" data-go="body">
+    ${limbs(1)}${limbs(-1)}
+    <path class="j" d="M80 90 Q120 78 160 90 L152 166 Q120 176 88 166 Z"/>
+    <ellipse class="j" cx="120" cy="180" rx="29" ry="20"/>
+    <path class="j" d="M90 194 Q120 186 150 194 L156 226 Q120 244 84 226 Z"/>
+  </g>
+  <g data-go="face">
+    ${seg(120, 66, 120, 84, 14)}
+    <ellipse class="j" cx="99" cy="48" rx="3.5" ry="6"/><ellipse class="j" cx="141" cy="48" rx="3.5" ry="6"/>
+    <ellipse class="j head" cx="120" cy="45" rx="21" ry="25"/>
+    <g class="z-eyes" data-go="eyes">
+      <path class="feat" d="M107 37 Q112 34 116 37 M124 37 Q128 34 133 37"/>
+      <path class="feat" d="M107 43 Q111.5 39.5 116 43 Q111.5 46 107 43 M124 43 Q128.500 39.500 133 43 Q128.500 46 124 43"/>
+      <circle class="iris" cx="111.500" cy="42.800" r="1.700"/><circle class="iris" cx="128.500" cy="42.800" r="1.700"/>
+    </g>
+    <g class="z-mouth" data-go="mouth">
+      <path class="feat" d="M120 45 L117.500 53 Q120 55 122.500 53"/>
+      <path class="feat" d="M112 60 Q116 58 120 59 Q124 58 128 60 Q120 65.500 112 60 M112 60 Q120 61 128 60"/>
+    </g>
+  </g>
+  <path id="hairCap" class="hair" data-go="hair" d="M98 44 Q95 16 120 16 Q145 16 142 44 Q139 30 130 27 Q120 31 110 27 Q101 30 98 44 Z" hidden/>
+</g></g>`;
+const BUILD_W = {Slim:.86, Lean:.91, Athletic:1.03, Average:1, Muscular:1.13, Stocky:1.16, Curvy:1.08, "Plus-size":1.24, Heavyset:1.2};
+const HEIGHT_H = {"Very short":.84, Short:.92, Average:1, Tall:1.03, "Very tall":1.05};
+const HAIR_Y = {"Chin-length":76, "Shoulder-length":100, Long:150, "Very long":205};
+function optColor(id) {
+  const f = F[id], o = f.opts.find(x => x.l === S.a[id]);
+  return o && o.c && !(S.c[id] || "").trim() ? o.c : null;
+}
+function updateFig() {
+  const fig = $("#fig"), st = STEPS[S.step], src = hasAny() ? S : {a:{}, c:{}};
+  const keep = S; S = Object.assign({}, S, {a: src.a, c: src.c});
+  fig.dataset.z = st.z;
+  const setVar = (k, v) => v ? fig.style.setProperty(k, v) : fig.style.removeProperty(k);
+  setVar("--skin", optColor("tone")); setVar("--hair", optColor("hairCol")); setVar("--eye", optColor("eyeColor"));
+  const len = S.a.hairLen, bald = len === "Bald";
+  const anyHair = len || S.a.hairCol || S.a.hairTex || S.a.hairStyle;
+  const afro = S.a.hairStyle === "Afro" && !bald;
+  $("#hairCap").toggleAttribute("hidden", !anyHair || bald);
+  $("#hairAfro").toggleAttribute("hidden", !afro);
+  const y = HAIR_Y[len];
+  $("#hairBack").toggleAttribute("hidden", !y || bald || afro);
+  if (y) $("#hairBack").setAttribute("d", `M97 42 Q93 ${y} 102 ${y} L138 ${y} Q147 ${y} 143 42 Q141 14 120 14 Q99 14 97 42 Z`);
+  const zoom = st.zoom;
+  $("#figB").style.transform = `scaleX(${BUILD_W[S.a.build] || 1})`;
+  $("#figH").style.transform = zoom ? "none" : `scale(${HEIGHT_H[S.a.height] || 1})`;
+  if (zoom) { const [s, x, yy] = zoom; $("#figZoom").style.transform = `translate(${110 - x * s}px, ${170 - yy * s}px) scale(${s})`; }
+  else $("#figZoom").style.transform = "none";
+  $("#ruler").style.opacity = zoom ? 0 : 1;
+  S = keep;
+}
+
+/* Rail and counts */
+function renderRail() {
+  $("#rail").innerHTML = STEPS.map((st, i) => {
+    const fs = st.fields ? st.fields.filter(isVis) : null;
+    const n = fs ? `${fs.filter(answered).length}/${fs.length}` : "";
+    return `<button type="button" data-go-step="${i}" id="rail-${st.id}"${i === S.step ? ' aria-current="step"' : ""}><span>${esc(stepText(st, "nav"))}</span><span class="n">${n}</span></button>`;
+  }).join("");
+}
+function updateCount() {
+  const vis = FLAT.filter(isVis);
+  $("#count").textContent = t("details")(vis.filter(answered).length, vis.length);
+}
+
+/* Field markup */
+function fieldHtml(f) {
+  let body = "";
+  const lab = `id="lab-${f.id}"`, label = fLabel(f);
+  const ph = isFr() ? frF(f).ph : f.ph, ownPh = (isFr() ? frF(f).ownPh : f.ownPh) || t("ownPh");
+  if (f.type === "text") {
+    body = `<label class="field-label" for="t-${f.id}">${esc(label)}</label><input type="text" id="t-${f.id}" data-text="${f.id}" autocomplete="off" placeholder="${esc(ph || "")}"${f.list ? ` list="${f.list}"` : ""} value="${esc(loc(f.id, S.lang))}">`;
+  } else if (f.type === "age") {
+    const unset = S.a.age == null;
+    body = `<label class="field-label" for="ageNum">${esc(label)}</label><div class="age-row"><input type="number" id="ageNum" min="1" max="120" placeholder="${esc(t("years"))}" value="${unset ? "" : S.a.age}"><input type="range" id="ageRange" min="1" max="100" value="${unset ? 30 : Math.min(100, S.a.age)}" aria-label="${esc(t("ageSlider"))}"><button type="button" class="link-btn" id="ageClear">${esc(t("clearAge"))}</button></div>`;
+  } else {
+    const chips = f.opts.map((o, i) => `<button type="button" class="chip" id="o-${f.id}-${i}" data-f="${f.id}" data-i="${i}" aria-pressed="false">${o.c ? `<span class="dot" style="background:${o.c}"></span>` : ""}${esc(oLabel(f, o))}</button>`).join("");
+    const own = f.noCustom ? "" : `<button type="button" class="chip own" id="own-${f.id}" data-own="${f.id}" aria-expanded="false">${esc(t("writeOwn"))}</button>`;
+    const ownIn = f.noCustom ? "" : `<input type="text" id="c-${f.id}" data-custom="${f.id}" aria-label="${esc(label)}" placeholder="${esc(ownPh)}" hidden>`;
+    body = `<div class="field-head"><span class="field-label" ${lab}>${esc(label)}</span><span class="field-mode">${esc(f.type === "many" ? t("pickAny") : t("pickOne"))}</span></div><div class="chips" role="group" aria-labelledby="lab-${f.id}">${chips}${own}</div>${ownIn}`;
+  }
+  return `<div class="field" id="field-${f.id}">${body}</div>`;
+}
+function syncFields() {
+  const st = STEPS[S.step];
+  (st.fields || []).forEach(f => {
+    const row = document.getElementById("field-" + f.id);
+    if (!row) return;
+    row.hidden = !isVis(f);
+    if (!f.opts) return;
+    f.opts.forEach((o, i) => {
+      const b = document.getElementById(`o-${f.id}-${i}`);
+      b.hidden = !optVis(f, o);
+      const v = S.a[f.id];
+      b.setAttribute("aria-pressed", String(f.type === "many" ? (v || []).includes(o.l) : v === o.l && !(S.c[f.id] || "").trim()));
+    });
+    const own = document.getElementById("own-" + f.id), inp = document.getElementById("c-" + f.id);
+    if (own && inp) {
+      if ((S.c[f.id] || "").trim()) { inp.hidden = false; own.setAttribute("aria-expanded", "true"); }
+      if (document.activeElement !== inp) inp.value = S.c[f.id] || "";
+    }
+  });
+  const note = $("#minorNote");
+  if (note) note.hidden = !isMinor();
+}
+
+/* Steps */
+function renderStep() {
+  const st = STEPS[S.step], main = $("#main");
+  $("#layout").classList.toggle("no-panel", !!st.final);
+  $("#panel").hidden = !!st.final;
+  if (st.final) { renderFinal(); }
+  else {
+    const prev = STEPS[S.step - 1], next = STEPS[S.step + 1];
+    main.innerHTML = `<p class="eyebrow">${esc(t("step")(S.step + 1, STEPS.length))}</p><h1>${esc(stepText(st, "title"))}</h1><p class="hint">${esc(stepText(st, "hint"))}</p>
+      <div class="fields">${st.id === "body" ? `<p class="note" id="minorNote" hidden>${esc(t("minorNote"))}</p>` : ""}${st.fields.map(fieldHtml).join("")}</div>
+      <div class="step-nav">${prev ? `<button type="button" class="btn" id="back" data-go-step="${S.step - 1}">${esc(t("back"))}</button>` : "<span></span>"}<button type="button" class="btn primary" id="next" data-go-step="${S.step + 1}">${esc(t("next") + stepText(next, "nav"))}</button></div>`;
+    syncFields();
+  }
+  refresh();
+}
+function renderFinal() {
+  const main = $("#main"), empty = !hasAny();
+  const tabs = Object.keys(FORMATS).map(k => `<button type="button" class="chip" id="fmt-${k}" data-fmt="${k}" aria-pressed="${S.fmt === k}">${esc((isFr() ? FORMATS_FR : FORMATS)[k].label)}</button>`).join("");
+  const missing = IMPORTANT.filter(id => isVis(F[id]) && !answered(F[id]));
+  const miss = missing.length
+    ? `<div class="missing"><h2>${esc(t("blank"))}</h2><p class="hint" style="margin:0 0 10px">${esc(t("blankHint"))}</p><div class="chips">${missing.map(id => `<button type="button" class="chip own" id="miss-${id}" data-go-step="${STEP_OF[id]}">${esc(fLabel(F[id]))}</button>`).join("")}</div></div>`
+    : `<div class="missing"><h2>${esc(t("allFilled"))}</h2></div>`;
+  main.innerHTML = `<p class="eyebrow">${esc(t("step")(S.step + 1, STEPS.length))}</p><h1>${esc(empty ? t("exTitle") : t("ready"))}</h1>
+    <p class="hint">${esc(empty ? t("exHint") : t("readyHint"))}</p>
+    <div class="tabs" role="group" aria-label="${esc(t("formatAria"))}">${tabs}</div>
+    <p class="help" id="fmtHelp"></p>
+    <div class="field" style="margin-top:16px"><span class="field-label" id="plangLabel">${esc(t("promptLang"))}</span>
+      <div class="chips" role="group" aria-labelledby="plangLabel"><button type="button" class="chip" id="plang-en" data-plang="en" aria-pressed="false">English</button><button type="button" class="chip" id="plang-fr" data-plang="fr" aria-pressed="false">Français</button></div>
+      <p class="help" style="margin:0">${esc(t("langNote"))}</p></div>
+    <label class="out-label" for="out" id="outLabel">${esc(t("prompt"))}</label>
+    <textarea id="out" rows="12" spellcheck="false"></textarea>
+    <div class="copy-row"><button type="button" class="btn primary" id="copyOut">${esc(t("copyPrompt"))}</button><span class="words" id="outWords"></span></div>
+    <div id="negWrap" hidden><label class="out-label" for="neg">${esc(t("neg"))}</label><textarea id="neg" rows="3" spellcheck="false"></textarea><div class="copy-row"><button type="button" class="btn" id="copyNeg">${esc(t("copyNeg"))}</button></div></div>
+    ${miss}
+    <div class="step-nav"><button type="button" class="btn" id="back" data-go-step="${S.step - 1}">${esc(t("back"))}</button></div>`;
+  fillFinal();
+}
+function fit(el) { el.style.height = "auto"; el.style.height = (el.scrollHeight + 4) + "px"; }
+function fillFinal() {
+  const r = current();
+  const out = $("#out");
+  out.value = r.main; fit(out);
+  $("#outWords").textContent = words(r.main) + " " + t("words");
+  $("#fmtHelp").textContent = (isFr() ? FORMATS_FR : FORMATS)[S.fmt].help;
+  ["en", "fr"].forEach(l => $("#plang-" + l).setAttribute("aria-pressed", String(S.plang === l)));
+  $("#negWrap").hidden = !r.neg;
+  if (r.neg) { $("#neg").value = r.neg; fit($("#neg")); }
+  Object.keys(FORMATS).forEach(k => $("#fmt-" + k).setAttribute("aria-pressed", String(S.fmt === k)));
+}
+function refresh() {
+  renderRail(); updateCount(); updateFig();
+  const any = hasAny();
+  $("#exTag").hidden = any;
+  $("#useExample").hidden = any;
+  const r = current();
+  $("#panelText").textContent = r.main + (r.neg ? "\n\n" + (pFr() ? "Prompt négatif : " : "Negative prompt: ") + r.neg : "");
+  $("#panelWords").textContent = words(r.main) + " " + t("words");
+}
+function updateLists() {
+  const fr = isFr();
+  $("#countries").innerHTML = COUNTRY_PAIRS.map(c => `<option value="${esc(c[fr ? 1 : 0])}"></option>`).join("");
+  $("#jobs").innerHTML = JOB_PAIRS.map(j => `<option value="${esc(fr ? (S.a.sex === "Female" ? j[2] : j[1]) : j[0])}"></option>`).join("");
+}
+function setChrome() {
+  const set = (id, k) => { const el = $(id); delete el.dataset.label; el.textContent = t(k); };
+  document.documentElement.lang = S.lang;
+  $("#rulerLabel").textContent = isFr() ? "têtes" : "heads";
+  set("#surprise", "surprise"); set("#reset", "reset"); set("#exTag", "example");
+  set("#panelCopy", "copy"); set("#useExample", "useExample");
+  delete $("#reset").dataset.armed;
+  $(".panel-title").firstChild.textContent = t("soFar") + " ";
+  $("#panel").setAttribute("aria-label", t("panel"));
+  $("#rail").setAttribute("aria-label", t("nav"));
+  ["en", "fr"].forEach(l => $("#lang-" + l).setAttribute("aria-pressed", String(S.lang === l)));
+}
+function changed() { save(); syncFields(); refresh(); }
+function goStep(i, focusTop) {
+  S.step = Math.max(0, Math.min(STEPS.length - 1, i));
+  save(); renderStep();
+  if (focusTop) window.scrollTo({top: 0});
+}
+
+/* Copy */
+function flash(btn, msg) {
+  const old = btn.dataset.label || btn.textContent;
+  btn.dataset.label = old;
+  btn.textContent = msg;
+  $("#live").textContent = msg;
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = old; }, 1800);
+}
+function selectEl(el) {
+  if (el.select) { el.focus(); el.select(); return; }
+  const r = document.createRange(); r.selectNodeContents(el);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+function copy(value, btn, el) {
+  const fail = () => { selectEl(el); flash(btn, t("selected")); };
+  if (!navigator.clipboard) return fail();
+  navigator.clipboard.writeText(value).then(() => flash(btn, t("copied")), fail);
+}
+
+/* Events */
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-go-step]");
+  if (go) return goStep(+go.dataset.goStep, true);
+  const chip = e.target.closest("[data-f]");
+  if (chip) {
+    const f = F[chip.dataset.f], o = f.opts[+chip.dataset.i];
+    if (f.type === "one") {
+      S.a[f.id] = S.a[f.id] === o.l && !(S.c[f.id] || "").trim() ? undefined : o.l;
+      S.c[f.id] = "";
+      const inp = document.getElementById("c-" + f.id);
+      if (inp) inp.value = "";
+    } else {
+      const list = S.a[f.id] || [];
+      S.a[f.id] = list.includes(o.l) ? list.filter(x => x !== o.l) : list.concat(o.l);
+    }
+    if (f.id === "sex") updateLists();
+    return changed();
+  }
+  const langBtn = e.target.closest("[data-lang]");
+  if (langBtn) {
+    S.lang = langBtn.dataset.lang; S.plang = S.lang;
+    save(); updateLists(); setChrome(); renderStep();
+    return;
+  }
+  const plang = e.target.closest("[data-plang]");
+  if (plang) { S.plang = plang.dataset.plang; save(); fillFinal(); refresh(); return; }
+  const own = e.target.closest("[data-own]");
+  if (own) {
+    const inp = document.getElementById("c-" + own.dataset.own);
+    const open = inp.hidden;
+    inp.hidden = !open;
+    own.setAttribute("aria-expanded", String(open));
+    if (open) inp.focus();
+    else { S.c[own.dataset.own] = ""; inp.value = ""; changed(); }
+    return;
+  }
+  const fmt = e.target.closest("[data-fmt]");
+  if (fmt) { S.fmt = fmt.dataset.fmt; save(); fillFinal(); refresh(); return; }
+  if (e.target.id === "ageClear") {
+    delete S.a.age; $("#ageNum").value = ""; $("#ageRange").value = 30; return changed();
+  }
+  if (e.target.id === "copyOut") return copy($("#out").value, e.target, $("#out"));
+  if (e.target.id === "copyNeg") return copy($("#neg").value, e.target, $("#neg"));
+  if (e.target.id === "panelCopy") return copy($("#panelText").textContent, e.target, $("#panelText"));
+});
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.dataset.text) { S.a[el.dataset.text] = el.value; return changedQuiet(); }
+  if (el.dataset.custom) {
+    const f = F[el.dataset.custom];
+    S.c[f.id] = el.value;
+    if (f.type === "one" && el.value.trim()) S.a[f.id] = undefined;
+    return changed();
+  }
+  if (el.id === "ageRange") { S.a.age = +el.value; $("#ageNum").value = el.value; return changed(); }
+  if (el.id === "ageNum") {
+    const n = parseInt(el.value, 10);
+    if (isNaN(n) || n < 1) delete S.a.age;
+    else { S.a.age = Math.min(n, 120); $("#ageRange").value = Math.min(n, 100); }
+    return changed();
+  }
+  if (el.id === "out") $("#outWords").textContent = words(el.value) + " " + t("words");
+});
+function changedQuiet() { save(); refresh(); }
+$("#fig").addEventListener("click", e => {
+  const z = e.target.closest("[data-go]");
+  if (!z) return;
+  const i = STEPS.findIndex(s => s.id === z.dataset.go);
+  if (i >= 0) goStep(i, false);
+});
+$("#useExample").addEventListener("click", () => {
+  S.a = JSON.parse(JSON.stringify(EXAMPLE.a)); S.c = {};
+  save(); renderStep();
+});
+const resetBtn = $("#reset");
+resetBtn.addEventListener("click", () => {
+  if (resetBtn.dataset.armed) {
+    delete resetBtn.dataset.armed;
+    resetBtn.textContent = t("reset");
+    S.a = {}; S.c = {}; S.step = 0;
+    updateLists();
+    save(); renderStep(); window.scrollTo({top: 0});
+    return;
+  }
+  resetBtn.dataset.armed = "1";
+  resetBtn.textContent = t("resetArm");
+  setTimeout(() => { delete resetBtn.dataset.armed; resetBtn.textContent = t("reset"); }, 3500);
+});
+const pick = l => l[Math.floor(Math.random() * l.length)];
+$("#surprise").addEventListener("click", () => {
+  const a = {}; S.c = {};
+  a.sex = pick(["Female", "Male"]);
+  a.age = 18 + Math.floor(Math.random() * 60);
+  a.origin = pick(COUNTRIES);
+  a.job = pick(JOBS.filter(j => j !== "student"));
+  a.era = "Present day";
+  const skip = new Set(["sex","pres","era","diff","series","chest","facialHair","eyewear","headwear","tattoos","hairStyle","nostrils","lipColor","noseSize","eyeSize"]);
+  FLAT.forEach(f => {
+    if (!f.opts || skip.has(f.id)) return;
+    if (f.type === "one" && Math.random() < .82) a[f.id] = pick(f.opts).l;
+    if (f.type === "many" && Math.random() < .55) {
+      const n = 1 + Math.floor(Math.random() * 2);
+      a[f.id] = Array.from(new Set(Array.from({length: n}, () => pick(f.opts).l)));
+    }
+  });
+  a.chest = a.sex === "Male" ? pick(["Narrow", "Average", "Broad", "Barrel"]) : pick(["Small bust", "Medium bust", "Full bust"]);
+  if (a.sex === "Male" && Math.random() < .6) a.facialHair = pick(F.facialHair.opts).l;
+  if (a.age > 60) a.hairCol = pick(["Grey", "White", "Salt and pepper"]);
+  a.hairLen = a.hairLen || "Short";
+  const shortStyles = ["Afro", "Fade", "Twists", "Slicked back", "Loose and natural"], longStyles = ["Loose and natural", "Box braids", "Cornrows", "Locs", "Twists", "Ponytail", "Bun", "Top knot"];
+  if (a.hairLen !== "Bald" && a.hairLen !== "Buzz cut") a.hairStyle = pick(a.hairLen === "Short" ? shortStyles : longStyles);
+  if (a.hairStyle === "Afro" || a.hairStyle === "Bantu knots") a.hairTex = "Coily";
+  if (a.hairLen === "Buzz cut") delete a.hairTex;
+  a.art = Math.random() < .7 ? "Photorealistic photo" : a.art;
+  a.frame = "Full body";
+  a.aspect = "2:3 Portrait";
+  S.a = a;
+  updateLists();
+  goStep(STEPS.length - 1, true);
+});
+
+/* Boot */
+updateLists();
+setChrome();
+renderStep();
+</script>
+<script>
+/* Install button and offline support */
+const INSTALL_T = {
+  en: {btn: "Install app", ios: "To install on iPhone or iPad, open this page in Safari, tap Share, then tap Add to Home Screen."},
+  fr: {btn: "Installer l'application", ios: "Pour l'installer sur iPhone ou iPad, ouvrez cette page dans Safari, appuyez sur Partager, puis sur Sur l'écran d'accueil."},
+};
+(function () {
+  const btn = document.getElementById("install"), tip = document.getElementById("iosTip");
+  const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let promptEvent = null;
+  function setText() { btn.textContent = INSTALL_T[S.lang].btn; tip.textContent = INSTALL_T[S.lang].ios; }
+  setText();
+  document.addEventListener("click", e => { if (e.target.closest("[data-lang]")) setText(); });
+  if (ios && !installed) btn.hidden = false;
+  addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptEvent = e; if (!installed) btn.hidden = false; });
+  addEventListener("appinstalled", () => { btn.hidden = true; tip.hidden = true; promptEvent = null; });
+  btn.addEventListener("click", async () => {
+    if (!promptEvent) { tip.hidden = !tip.hidden; return; }
+    promptEvent.prompt();
+    await promptEvent.userChoice;
+    promptEvent = null;
+    btn.hidden = true;
+  });
+  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+})();
+</script>
+<script>
+/* Access codes for X-Character Prompt Creator. Shared by the app and the Code Maker. */
+const XC_SECRET = "63456cc130bfa87429f3e347a70f1930e187976fac206bee18ee4d0544e5134c";
+const XC_B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const XC_EPOCH = Date.UTC(2026, 0, 1);
+const XC_DAY = 86400000;
+const XC_ENTER_DAYS = 7;
+function xcEnc(bytes) {
+  let bits = 0, val = 0, out = "";
+  for (const b of bytes) {
+    val = ((val << 8) | b) & 0xffff; bits += 8;
+    while (bits >= 5) { out += XC_B32[(val >>> (bits - 5)) & 31]; bits -= 5; }
+  }
+  if (bits > 0) out += XC_B32[(val << (5 - bits)) & 31];
+  return out;
+}
+function xcDec(str) {
+  let bits = 0, val = 0; const out = [];
+  for (const ch of str) {
+    const i = XC_B32.indexOf(ch);
+    if (i < 0) return null;
+    val = ((val << 5) | i) & 0xffff; bits += 5;
+    if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; }
+  }
+  return out;
+}
+function xcNorm(s) { return String(s || "").toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1"); }
+function xcGroup(s, n) { return s.match(new RegExp(".{1," + n + "}", "g")).join("-"); }
+let xcKeyPromise = null;
+async function xcSig(device, payload) {
+  if (!xcKeyPromise) {
+    const raw = new Uint8Array(XC_SECRET.match(/../g).map(h => parseInt(h, 16)));
+    xcKeyPromise = crypto.subtle.importKey("raw", raw, {name: "HMAC", hash: "SHA-256"}, false, ["sign"]);
+  }
+  const msg = new TextEncoder().encode("XC1|" + device + "|" + payload.join(","));
+  const s = new Uint8Array(await crypto.subtle.sign("HMAC", await xcKeyPromise, msg));
+  return Array.from(s.slice(0, 5));
+}
+/* days: 1 to 255, or 0 for no end date */
+async function xcMakeCode(device, createdMs, days) {
+  const d = Math.floor((createdMs - XC_EPOCH) / XC_DAY);
+  const nonce = crypto.getRandomValues(new Uint8Array(1))[0];
+  const p = [(d >> 8) & 255, d & 255, days & 255, nonce];
+  return xcGroup(xcEnc(p.concat(await xcSig(device, p))), 5);
+}
+async function xcReadCode(device, code) {
+  const c = xcNorm(code);
+  if (c.length !== 15) return null;
+  const bytes = xcDec(c);
+  if (!bytes || bytes.length < 9) return null;
+  const p = bytes.slice(0, 4), sig = await xcSig(device, p);
+  if (sig.some((v, i) => v !== bytes[4 + i])) return null;
+  return {created: XC_EPOCH + ((p[0] << 8) | p[1]) * XC_DAY, days: p[2]};
+}
+
+/* Passcode lock. Each code works on one device, for its number of days from the moment it is entered. */
+(function () {
+  const KEY = "x-character-access-v1";
+  const TXT = {
+    en: {title: "Enter your access code", expiredTitle: "Your access has ended",
+      intro: "X-Character Prompt Creator is private. To get an access code, send your device number to the app owner.",
+      devLabel: "Your device number", copy: "Copy", copied: "Copied", select: "Selected. Copy it from your device",
+      codeLabel: "Access code", unlock: "Unlock", checking: "Checking…",
+      note: "Each code works only on this device. If you clear this app's data or switch browsers, you will get a new device number and need a new code.",
+      invalid: "This code doesn't work on this device. Check the code, and check that it was made for the device number above.",
+      late: "This code was not entered within 7 days, so it can no longer be used. Ask the app owner for a new code.",
+      expired: d => `Your access ended on ${d}. Send your device number to the app owner to get a new code.`,
+      empty: "Type your access code first.",
+      badge: d => `Access until ${d}`},
+    fr: {title: "Entrez votre code d'accès", expiredTitle: "Votre accès est terminé",
+      intro: "X-Character Prompt Creator est privé. Pour obtenir un code d'accès, envoyez le numéro de votre appareil au propriétaire de l'application.",
+      devLabel: "Numéro de votre appareil", copy: "Copier", copied: "Copié", select: "Sélectionné. Copiez-le depuis votre appareil",
+      codeLabel: "Code d'accès", unlock: "Déverrouiller", checking: "Vérification…",
+      note: "Chaque code ne fonctionne que sur cet appareil. Si vous effacez les données de l'application ou changez de navigateur, vous aurez un nouveau numéro d'appareil et il vous faudra un nouveau code.",
+      invalid: "Ce code ne fonctionne pas sur cet appareil. Vérifiez le code, et vérifiez qu'il a été créé pour le numéro d'appareil ci-dessus.",
+      late: "Ce code n'a pas été saisi dans les 7 jours, il ne peut donc plus être utilisé. Demandez un nouveau code au propriétaire de l'application.",
+      expired: d => `Votre accès a pris fin le ${d}. Envoyez le numéro de votre appareil au propriétaire de l'application pour obtenir un nouveau code.`,
+      empty: "Saisissez d'abord votre code d'accès.",
+      badge: d => `Accès jusqu'au ${d}`},
+  };
+  const lang = () => (typeof S !== "undefined" && S.lang === "fr") ? "fr" : "en";
+  const tx = k => TXT[lang()][k];
+  const fmt = ms => new Date(ms).toLocaleDateString(lang() === "fr" ? "fr-FR" : "en-GB", {day: "numeric", month: "long", year: "numeric"});
+
+  let A = {};
+  try { A = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+  if (!A.device) A.device = xcEnc(Array.from(crypto.getRandomValues(new Uint8Array(5)))).slice(0, 8);
+  A.codes = A.codes || {};
+  const store = () => { try { localStorage.setItem(KEY, JSON.stringify(A)); } catch (e) {} };
+  store();
+
+  /* The clock never goes backwards: the latest time seen, or the web server's time, wins over the device clock. */
+  let serverNow = 0, serverAt = 0;
+  function now() {
+    let t = Date.now();
+    if (serverNow) t = Math.max(t, serverNow + (performance.now() - serverAt));
+    t = Math.max(t, A.lastSeen || 0);
+    A.lastSeen = t; store();
+    return t;
+  }
+  async function syncTime() {
+    try {
+      const r = await fetch("manifest.webmanifest?now=" + Date.now(), {cache: "no-store"});
+      const d = Date.parse(r.headers.get("Date") || "");
+      if (!isNaN(d)) { serverNow = d + (parseInt(r.headers.get("Age") || "0", 10) || 0) * 1000; serverAt = performance.now(); }
+    } catch (e) {}
+  }
+  function state() {
+    const rec = A.active && A.codes[A.active];
+    if (!rec) return {ok: false};
+    if (!rec.days) return {ok: true, end: 0};
+    const end = rec.activatedAt + rec.days * XC_DAY;
+    return now() < end ? {ok: true, end} : {ok: false, expired: end};
+  }
+
+  /* Screen */
+  const lock = document.getElementById("xcLock");
+  const badge = document.createElement("span");
+  badge.className = "count"; badge.id = "xcBadge";
+  const topRight = document.querySelector(".top-right");
+  if (topRight) topRight.prepend(badge);
+  let msg = "";
+  function render(st) {
+    const dev = xcGroup(A.device, 4);
+    document.getElementById("xcTitle").textContent = st.expired ? tx("expiredTitle") : tx("title");
+    document.getElementById("xcIntro").textContent = tx("intro");
+    document.getElementById("xcDevLabel").textContent = tx("devLabel");
+    document.getElementById("xcDevice").textContent = dev;
+    document.getElementById("xcCopyDev").textContent = tx("copy");
+    document.getElementById("xcCodeLabel").textContent = tx("codeLabel");
+    document.getElementById("xcUnlock").textContent = tx("unlock");
+    document.getElementById("xcNote").textContent = tx("note");
+    const m = document.getElementById("xcMsg");
+    const text = msg ? tx(msg) : st.expired ? tx("expired")(fmt(st.expired)) : "";
+    m.textContent = text; m.hidden = !text;
+    ["en", "fr"].forEach(l => document.getElementById("xcLang-" + l).setAttribute("aria-pressed", String(lang() === l)));
+    badge.textContent = st.ok && st.end ? tx("badge")(fmt(st.end)) : "";
+    badge.hidden = !(st.ok && st.end);
+  }
+  function apply() {
+    const st = state();
+    document.documentElement.classList.toggle("xc-ok", st.ok);
+    lock.hidden = st.ok;
+    render(st);
+  }
+  async function enter(code) {
+    if (!xcNorm(code)) return "empty";
+    const info = await xcReadCode(A.device, code);
+    if (!info) return "invalid";
+    const key = xcNorm(code), t = now();
+    if (!A.codes[key]) {
+      if (t > info.created + (XC_ENTER_DAYS + 1) * XC_DAY) return "late";
+      A.codes[key] = {activatedAt: t, days: info.days};
+    }
+    A.active = key; store();
+    return "";
+  }
+
+  document.getElementById("xcForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = document.getElementById("xcUnlock"), input = document.getElementById("xcCode");
+    btn.disabled = true; btn.textContent = tx("checking");
+    msg = await enter(input.value);
+    btn.disabled = false;
+    apply();
+    if (!lock.hidden) { input.focus(); }
+    else { input.value = ""; window.scrollTo({top: 0}); }
+  });
+  document.getElementById("xcCopyDev").addEventListener("click", e => {
+    const btn = e.currentTarget, el = document.getElementById("xcDevice"), done = label => { btn.textContent = label; setTimeout(() => { btn.textContent = tx("copy"); }, 1600); };
+    const fail = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done(tx("select")); };
+    if (!navigator.clipboard) return fail();
+    navigator.clipboard.writeText(xcGroup(A.device, 4)).then(() => done(tx("copied")), fail);
+  });
+  document.addEventListener("click", e => { if (e.target.closest("[data-lang]")) setTimeout(() => render(state()), 0); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) apply(); });
+  setInterval(apply, 60000);
+  apply();
+  syncTime().then(apply);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+{
+  "id": "./",
+  "name": "X-Character Prompt Creator",
+  "short_name": "X-Character",
+  "description": "Answer step-by-step questions in French or English about a character, then copy a ready-made prompt for any AI image tool.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#EDEFF8",
+  "theme_color": "#1B1E4B",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Questions, mannequin and live prompt"
+    },
+    {
+      "src": "screenshots/narrow.png",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "The finished prompt on a phone"
+    }
+  ]
+}
